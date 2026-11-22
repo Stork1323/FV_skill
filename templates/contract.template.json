@@ -1,0 +1,91 @@
+{
+  "schema_version": "1.0",
+  "design": {
+    "name": "<design-name>",
+    "top": "<top-module>",
+    "clock": {
+      "signal": "<clock-port>",
+      "edge": "posedge"
+    },
+    "reset": {
+      "signal": "<reset-port>",
+      "active": "low",
+      "kind": "async",
+      "cycles": 2
+    },
+    "parameters": {
+      "<PARAM>": 0
+    },
+    "notes": "Replace every <...> token before validating. One sentence on the verified configuration."
+  },
+  "requirements": [
+    {
+      "id": "<REQ-ID>",
+      "feature": "<FEATURE-ID>",
+      "disposition": "formalized",
+      "reason": "One or two sentences explaining why the properties below cover this requirement's observable behavior.",
+      "evidence": {
+        "section": "<spec heading>",
+        "quote": "<verbatim sentence from the spec Markdown, at least 20 characters>"
+      },
+      "properties": [
+        "<PRP-ID>"
+      ]
+    },
+    {
+      "id": "<REQ-ID-2>",
+      "feature": "<FEATURE-ID>",
+      "disposition": "not_formalizable",
+      "reason": "Explain which explicit disposition applies and why the requirement is not an observable temporal property.",
+      "evidence": {
+        "section": "<spec heading>",
+        "quote": "<verbatim sentence from the spec Markdown, at least 20 characters>"
+      }
+    }
+  ],
+  "properties": [
+    {
+      "id": "<PRP-ID>",
+      "req": "<REQ-ID>",
+      "feature": "<FEATURE-ID>",
+      "title": "One sentence naming the observable condition",
+      "kind": "next",
+      "role": "assert",
+      "trigger": "<condition at the current edge>",
+      "expr": "<signal> == prev(<signal>)",
+      "severity": "error",
+      "tags": [
+        "<tag>"
+      ],
+      "evidence": {
+        "section": "<spec heading>",
+        "quote": "<the same verbatim sentence as the requirement>"
+      }
+    }
+  ],
+  "scope": {
+    "configuration": {
+      "<PARAM>": 0
+    },
+    "proven": [
+      "BMC from a 2-cycle reset sequence at the configured depth",
+      "Temporal induction where the property is inductive"
+    ],
+    "not_proven": [
+      "Other <PARAM> values are not covered by this contract.",
+      "Internal state and unspecified behavior are not checked."
+    ],
+    "notes": "Optional boundary statement."
+  },
+  "metadata": {
+    "author": "<author>",
+    "generated_by": "formal-sva templates/contract.template.json",
+    "instructions": [
+      "Copy this file to formal/schemas/formal_contract.json.",
+      "Replace every <...> token using formal/schemas/input_bundle.json.",
+      "Every requirement in the bundle must appear exactly once; add or remove entries as needed.",
+      "Use prompts/contract.md and templates/patterns.json for the rules and property shapes.",
+      "Run: python3 scripts/fv.py validate --design formal/design.json"
+    ]
+  }
+}

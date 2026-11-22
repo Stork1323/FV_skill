@@ -1,0 +1,63 @@
+{
+  "schema_version": "1.0",
+  "top": "counter",
+  "top_source": "/Users/nguyendactam/Working/Formal_verification/skills/formal-sva/examples/counter/src/rtl/counter.sv",
+  "parameters": {
+    "WIDTH": 4
+  },
+  "localparams": {},
+  "unresolved_constants": [],
+  "ports": [
+    {
+      "name": "i_clk",
+      "direction": "input",
+      "width": 1,
+      "dims": [],
+      "ndims": 0,
+      "resolved": true,
+      "source_dims": [],
+      "unpacked_dims": []
+    },
+    {
+      "name": "i_rst_n",
+      "direction": "input",
+      "width": 1,
+      "dims": [],
+      "ndims": 0,
+      "resolved": true,
+      "source_dims": [],
+      "unpacked_dims": []
+    },
+    {
+      "name": "i_inc",
+      "direction": "input",
+      "width": 1,
+      "dims": [],
+      "ndims": 0,
+      "resolved": true,
+      "source_dims": [],
+      "unpacked_dims": []
+    },
+    {
+      "name": "q",
+      "direction": "output",
+      "width": 4,
+      "dims": [
+        "[3:0]"
+      ],
+      "ndims": 1,
+      "resolved": true,
+      "source_dims": [
+        "[WIDTH-1:0]"
+      ],
+      "unpacked_dims": []
+    }
+  ],
+  "sources": [
+    "/Users/nguyendactam/Working/Formal_verification/skills/formal-sva/examples/counter/src/rtl/counter.sv"
+  ],
+  "include_dirs": [],
+  "defines": [],
+  "yosys_json": "/Users/nguyendactam/Working/Formal_verification/skills/formal-sva/examples/counter/formal/schemas/design_interface.yosys.json",
+  "port_count": 4
+}

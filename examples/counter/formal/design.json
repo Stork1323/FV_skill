@@ -1,0 +1,34 @@
+{
+  "schema_version": "1.0",
+  "name": "counter",
+  "top": "counter",
+  "spec": {
+    "structured": "schemas/structured_spec.json",
+    "config": "schemas/final_config.json",
+    "markdown": "spec/spec.md"
+  },
+  "rtl": {
+    "filelist": "src/rtl/filelist.f"
+  },
+  "clock": {
+    "signal": "i_clk",
+    "edge": "posedge"
+  },
+  "reset": {
+    "signal": "i_rst_n",
+    "active": "low",
+    "kind": "async",
+    "cycles": 2
+  },
+  "parameters": {
+    "WIDTH": 4
+  },
+  "formal": {
+    "backend": "yosys",
+    "depth": 8,
+    "timeout_s": 60,
+    "jobs": 2,
+    "induction": true,
+    "reset_cycles": 2
+  }
+}

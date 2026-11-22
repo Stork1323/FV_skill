@@ -1,0 +1,117 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-11-19T02:16:05+00:00",
+  "design": {
+    "name": "counter",
+    "top": "counter",
+    "clock": {
+      "signal": "i_clk",
+      "edge": "posedge"
+    },
+    "reset": {
+      "signal": "i_rst_n",
+      "active": "low",
+      "kind": "async",
+      "cycles": 2
+    },
+    "parameters": {
+      "WIDTH": 4
+    }
+  },
+  "contract": {
+    "path": "formal/schemas/formal_contract.json",
+    "sha256": "1172a69041c2c71b09d57918158206af37cec4c22cb92935ed15fc161dc6aafb"
+  },
+  "summary": {
+    "overall": "PASS",
+    "statuses": {
+      "BMC_PASS": 1,
+      "PROVEN": 3,
+      "COVERED": 1
+    }
+  },
+  "properties": {
+    "PRP-REQ-001-01": {
+      "status": "BMC_PASS",
+      "req": "REQ-001",
+      "severity": "error",
+      "kind": "reset_value",
+      "role": "assert"
+    },
+    "PRP-REQ-003-01": {
+      "status": "PROVEN",
+      "req": "REQ-003",
+      "severity": "error",
+      "kind": "next",
+      "role": "assert"
+    },
+    "PRP-REQ-004-01": {
+      "status": "PROVEN",
+      "req": "REQ-004",
+      "severity": "error",
+      "kind": "next",
+      "role": "assert"
+    },
+    "PRP-REQ-005-01": {
+      "status": "PROVEN",
+      "req": "REQ-005",
+      "severity": "error",
+      "kind": "next",
+      "role": "assert"
+    },
+    "COV-REQ-006-01": {
+      "status": "COVERED",
+      "req": "REQ-006",
+      "severity": "info",
+      "kind": "cover",
+      "role": "cover"
+    }
+  },
+  "requirements": {
+    "REQ-001": {
+      "status": "BMC_PASS",
+      "req": null,
+      "severity": "error"
+    },
+    "REQ-002": {
+      "status": "NOT_FORMALIZABLE",
+      "req": null,
+      "severity": "info"
+    },
+    "REQ-003": {
+      "status": "PROVEN",
+      "req": null,
+      "severity": "error"
+    },
+    "REQ-004": {
+      "status": "PROVEN",
+      "req": null,
+      "severity": "error"
+    },
+    "REQ-005": {
+      "status": "PROVEN",
+      "req": null,
+      "severity": "error"
+    },
+    "REQ-006": {
+      "status": "COVERED",
+      "req": null,
+      "severity": "info"
+    },
+    "REQ-007": {
+      "status": "NOT_FORMALIZABLE",
+      "req": null,
+      "severity": "info"
+    }
+  },
+  "features": {
+    "F01": {
+      "status": "WARN",
+      "req": null
+    },
+    "F02": {
+      "status": "OK",
+      "req": null
+    }
+  }
+}

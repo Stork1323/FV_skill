@@ -1,0 +1,197 @@
+{
+  "schema_version": "1.0",
+  "design": {
+    "name": "counter",
+    "top": "counter",
+    "clock": {
+      "signal": "i_clk",
+      "edge": "posedge"
+    },
+    "reset": {
+      "signal": "i_rst_n",
+      "active": "low",
+      "kind": "async",
+      "cycles": 2
+    },
+    "parameters": {
+      "WIDTH": 4
+    },
+    "notes": "The fixture proves the WIDTH=4 configuration only."
+  },
+  "requirements": [
+    {
+      "id": "REQ-001",
+      "feature": "F01",
+      "disposition": "formalized",
+      "reason": "The reset value is a state invariant that must hold while the asynchronous reset is asserted.",
+      "evidence": {
+        "section": "5.1 Reset",
+        "quote": "While i_rst_n is low, q shall be 4'b0000."
+      },
+      "properties": ["PRP-REQ-001-01"]
+    },
+    {
+      "id": "REQ-002",
+      "feature": "F01",
+      "disposition": "not_formalizable",
+      "reason": "Single-clock structure is established by RTL elaboration and clock-domain checks; a temporal assertion would restate the clocking of the harness.",
+      "evidence": {
+        "section": "5.2 Counting",
+        "quote": "q shall change only on the rising edge of i_clk."
+      }
+    },
+    {
+      "id": "REQ-003",
+      "feature": "F02",
+      "disposition": "formalized",
+      "reason": "The increment transition is a next-cycle relation between the current and next values of q.",
+      "evidence": {
+        "section": "5.2 Counting",
+        "quote": "When i_inc is 1 and q is not 15, q shall increment by 1 on the next rising edge of i_clk."
+      },
+      "properties": ["PRP-REQ-003-01"]
+    },
+    {
+      "id": "REQ-004",
+      "feature": "F02",
+      "disposition": "formalized",
+      "reason": "The hold behavior is a next-cycle relation; it is the complement of the increment transition.",
+      "evidence": {
+        "section": "5.2 Counting",
+        "quote": "When i_inc is 0, q shall hold its value on the next rising edge of i_clk."
+      },
+      "properties": ["PRP-REQ-004-01"]
+    },
+    {
+      "id": "REQ-005",
+      "feature": "F02",
+      "disposition": "formalized",
+      "reason": "The wrap transition is a next-cycle relation at the maximum value.",
+      "evidence": {
+        "section": "5.2 Counting",
+        "quote": "When i_inc is 1 and q is 15, q shall wrap to 0 on the next rising edge of i_clk."
+      },
+      "properties": ["PRP-REQ-005-01"]
+    },
+    {
+      "id": "REQ-006",
+      "feature": "F02",
+      "disposition": "formalized",
+      "reason": "The reachability scenario is checked by a cover property so that the transition properties are not vacuous.",
+      "evidence": {
+        "section": "5.3 Verification scenarios",
+        "quote": "A cycle with i_inc 1 and q 0 shall be reachable after reset."
+      },
+      "properties": ["COV-REQ-006-01"]
+    },
+    {
+      "id": "REQ-007",
+      "feature": "F01",
+      "disposition": "not_formalizable",
+      "reason": "The output width is a structural/elaboration fact; it is checked by the interface extractor and by the exact port mapping of the harness.",
+      "evidence": {
+        "section": "6 Notes and Open Items",
+        "quote": "The counter output q shall be WIDTH bits wide."
+      }
+    }
+  ],
+  "properties": [
+    {
+      "id": "PRP-REQ-001-01",
+      "req": "REQ-001",
+      "feature": "F01",
+      "title": "Reset drives q to zero while i_rst_n is low",
+      "kind": "reset_value",
+      "role": "assert",
+      "expr": "q == 4'd0",
+      "disable_reset": false,
+      "severity": "error",
+      "tags": ["reset"],
+      "evidence": {
+        "section": "5.1 Reset",
+        "quote": "While i_rst_n is low, q shall be 4'b0000."
+      }
+    },
+    {
+      "id": "PRP-REQ-003-01",
+      "req": "REQ-003",
+      "feature": "F02",
+      "title": "An increment below the maximum adds exactly one",
+      "kind": "next",
+      "role": "assert",
+      "trigger": "i_inc && q != 4'd15",
+      "expr": "q == prev(q) + 4'd1",
+      "severity": "error",
+      "tags": ["counting"],
+      "evidence": {
+        "section": "5.2 Counting",
+        "quote": "When i_inc is 1 and q is not 15, q shall increment by 1 on the next rising edge of i_clk."
+      }
+    },
+    {
+      "id": "PRP-REQ-004-01",
+      "req": "REQ-004",
+      "feature": "F02",
+      "title": "Without an increment q holds its value",
+      "kind": "next",
+      "role": "assert",
+      "trigger": "!i_inc",
+      "expr": "q == prev(q)",
+      "severity": "error",
+      "tags": ["counting"],
+      "evidence": {
+        "section": "5.2 Counting",
+        "quote": "When i_inc is 0, q shall hold its value on the next rising edge of i_clk."
+      }
+    },
+    {
+      "id": "PRP-REQ-005-01",
+      "req": "REQ-005",
+      "feature": "F02",
+      "title": "An increment at the maximum wraps to zero",
+      "kind": "next",
+      "role": "assert",
+      "trigger": "i_inc && q == 4'd15",
+      "expr": "q == 4'd0",
+      "severity": "error",
+      "tags": ["counting", "wrap"],
+      "evidence": {
+        "section": "5.2 Counting",
+        "quote": "When i_inc is 1 and q is 15, q shall wrap to 0 on the next rising edge of i_clk."
+      }
+    },
+    {
+      "id": "COV-REQ-006-01",
+      "req": "REQ-006",
+      "feature": "F02",
+      "title": "An increment at zero is reachable after reset",
+      "kind": "cover",
+      "role": "cover",
+      "expr": "i_inc && q == 4'd0",
+      "severity": "info",
+      "tags": ["coverage"],
+      "evidence": {
+        "section": "5.3 Verification scenarios",
+        "quote": "A cycle with i_inc 1 and q 0 shall be reachable after reset."
+      }
+    }
+  ],
+  "scope": {
+    "configuration": {
+      "WIDTH": 4
+    },
+    "proven": [
+      "BMC from a 2-cycle reset sequence at depth 8",
+      "Temporal induction with history skips when the property is inductive"
+    ],
+    "not_proven": [
+      "Other WIDTH values are not covered by this contract.",
+      "The single-clock structure (REQ-002) and the port width (REQ-007) are elaboration facts, not temporal proofs."
+    ],
+    "notes": "Generated for the formal-sva end-to-end fixture."
+  },
+  "metadata": {
+    "author": "formal-sva fixture",
+    "backend": "yosys"
+  }
+}

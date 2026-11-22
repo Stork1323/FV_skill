@@ -1,0 +1,443 @@
+{
+  "schema_version": "1.0",
+  "description": "Reusable property shapes for formal-sva contract writing. Placeholders use {{NAME}}. Pick a shape that matches the spec sentence, then replace every placeholder with bundle data and a verbatim spec quote. Do not copy a shape whose meaning is stronger than the sentence.",
+  "patterns": [
+    {
+      "id": "reset-value",
+      "name": "Reset invariant",
+      "use_when": "The spec states the value of an output or register while reset is asserted (active high or low).",
+      "kind": "reset_value",
+      "role": "assert",
+      "fields": {
+        "expr": "Required value while reset is active. Use only constants, ports and resolved parameters; history is forbidden."
+      },
+      "template": {
+        "id": "PRP-{{REQ}}-01",
+        "req": "{{REQ}}",
+        "feature": "{{FEATURE}}",
+        "title": "Reset drives {{SIGNAL}} to its specified value",
+        "kind": "reset_value",
+        "role": "assert",
+        "expr": "{{SIGNAL}} == {{VALUE}}",
+        "severity": "error",
+        "tags": ["reset"],
+        "evidence": {"section": "{{SECTION}}", "quote": "{{QUOTE}}"}
+      },
+      "example": {
+        "id": "PRP-REQ-001-01",
+        "req": "REQ-001",
+        "feature": "F01",
+        "title": "Reset drives q to zero",
+        "kind": "reset_value",
+        "role": "assert",
+        "expr": "q == 4'd0",
+        "severity": "error",
+        "tags": ["reset"],
+        "evidence": {"section": "5.1 Reset", "quote": "While i_rst_n is low, q shall be 4'b0000."}
+      },
+      "avoid": "Do not add a trigger, prev(), or disable_reset; the kind already scopes itself to reset."
+    },
+    {
+      "id": "next-increment",
+      "name": "Next-cycle update",
+      "use_when": "The spec gives the next value of a registered signal as a function of its current value and inputs.",
+      "kind": "next",
+      "role": "assert",
+      "fields": {
+        "trigger": "Condition at edge t under which the update happens.",
+        "expr": "Relation that holds at t+1. Refer to the previous value with prev(signal)."
+      },
+      "template": {
+        "id": "PRP-{{REQ}}-01",
+        "req": "{{REQ}}",
+        "feature": "{{FEATURE}}",
+        "title": "{{SIGNAL}} takes its specified next value",
+        "kind": "next",
+        "role": "assert",
+        "trigger": "{{TRIGGER}}",
+        "expr": "{{SIGNAL}} == {{NEXT_VALUE}}",
+        "severity": "error",
+        "tags": ["{{TAG}}"],
+        "evidence": {"section": "{{SECTION}}", "quote": "{{QUOTE}}"}
+      },
+      "example": {
+        "id": "PRP-REQ-003-01",
+        "req": "REQ-003",
+        "feature": "F02",
+        "title": "An increment below the maximum adds exactly one",
+        "kind": "next",
+        "role": "assert",
+        "trigger": "i_inc && q != (WIDTH - 1)",
+        "expr": "q == prev(q) + 1",
+        "severity": "error",
+        "tags": ["counting"],
+        "evidence": {"section": "5.2 Counting", "quote": "When i_inc is 1 and q is not 15, q shall increment by 1 on the next rising edge of i_clk."}
+      },
+      "avoid": "Do not use next for combinational outputs: their new value appears in the same cycle. Use always with when."
+    },
+    {
+      "id": "next-hold",
+      "name": "Hold value",
+      "use_when": "The spec says a register or output keeps its value for a cycle when no event occurs.",
+      "kind": "next",
+      "role": "assert",
+      "fields": {
+        "trigger": "Condition under which the value is held.",
+        "expr": "signal == prev(signal)"
+      },
+      "template": {
+        "id": "PRP-{{REQ}}-01",
+        "req": "{{REQ}}",
+        "feature": "{{FEATURE}}",
+        "title": "{{SIGNAL}} holds its value when {{CONDITION}}",
+        "kind": "next",
+        "role": "assert",
+        "trigger": "{{TRIGGER}}",
+        "expr": "{{SIGNAL}} == prev({{SIGNAL}})",
+        "severity": "error",
+        "tags": ["hold"],
+        "evidence": {"section": "{{SECTION}}", "quote": "{{QUOTE}}"}
+      },
+      "example": {
+        "id": "PRP-REQ-004-01",
+        "req": "REQ-004",
+        "feature": "F02",
+        "title": "Without an increment q holds its value",
+        "kind": "next",
+        "role": "assert",
+        "trigger": "!i_inc",
+        "expr": "q == prev(q)",
+        "severity": "error",
+        "tags": ["counting"],
+        "evidence": {"section": "5.2 Counting", "quote": "When i_inc is 0, q shall hold its value on the next rising edge of i_clk."}
+      },
+      "avoid": "Do not use stability for registered next-state behavior; stability means the signal does not change after a trigger, not that it equals a specified expression."
+    },
+    {
+      "id": "always-invariant",
+      "name": "Unconditional invariant",
+      "use_when": "The spec states a condition that must hold on every cycle, independent of any trigger.",
+      "kind": "always",
+      "role": "assert",
+      "fields": {
+        "expr": "Invariant expression over ports and parameters.",
+        "when": "Optional guard for a mode-specific invariant."
+      },
+      "template": {
+        "id": "PRP-{{REQ}}-01",
+        "req": "{{REQ}}",
+        "feature": "{{FEATURE}}",
+        "title": "{{OBSERVABLE_CONDITION}}",
+        "kind": "always",
+        "role": "assert",
+        "expr": "{{EXPR}}",
+        "severity": "error",
+        "evidence": {"section": "{{SECTION}}", "quote": "{{QUOTE}}"}
+      },
+      "example": {
+        "id": "PRP-REQ-010-01",
+        "req": "REQ-010",
+        "feature": "F03",
+        "title": "The two grant outputs are never asserted together",
+        "kind": "always",
+        "role": "assert",
+        "expr": "!(o_grant0 && o_grant1)",
+        "severity": "error",
+        "evidence": {"section": "5.4 Arbitration", "quote": "Only one grant output shall be asserted at a time."}
+      },
+      "avoid": "Do not encode a next-cycle relation here; use next or response."
+    },
+    {
+      "id": "qualified-invariant",
+      "name": "Qualified invariant",
+      "use_when": "The spec states an obligation that applies only when a mode or handshake condition holds, and the obligation is observable in the same cycle.",
+      "kind": "always",
+      "role": "assert",
+      "fields": {
+        "when": "Qualification (mode, valid/ready, parameter configuration).",
+        "expr": "Obligation in the qualified cycle."
+      },
+      "template": {
+        "id": "PRP-{{REQ}}-01",
+        "req": "{{REQ}}",
+        "feature": "{{FEATURE}}",
+        "title": "{{OBSERVABLE_CONDITION}}",
+        "kind": "always",
+        "role": "assert",
+        "when": "{{WHEN}}",
+        "expr": "{{EXPR}}",
+        "severity": "error",
+        "evidence": {"section": "{{SECTION}}", "quote": "{{QUOTE}}"}
+      },
+      "example": {
+        "id": "PRP-REQ-011-01",
+        "req": "REQ-011",
+        "feature": "F04",
+        "title": "A read response carries matching data when valid",
+        "kind": "always",
+        "role": "assert",
+        "when": "o_rvalid",
+        "expr": "o_rlast == (o_rdata_count == 0)",
+        "severity": "error",
+        "evidence": {"section": "5.5 Read channel", "quote": "When o_rvalid is asserted, o_rlast shall mark the final beat."}
+      },
+      "avoid": "Do not put a future-cycle obligation in expr; use next or response instead."
+    },
+    {
+      "id": "bounded-response",
+      "name": "Bounded response",
+      "use_when": "The spec says that an event must be followed by another event within a number of cycles.",
+      "kind": "response",
+      "role": "assert",
+      "fields": {
+        "trigger": "Stimulus at edge t.",
+        "response": "Required event at some edge in [t+min_delay, t+max_delay].",
+        "min_delay": "Minimum delay in clock cycles, at least 1.",
+        "max_delay": "Maximum delay justified by the spec or interface; must be >= min_delay."
+      },
+      "template": {
+        "id": "PRP-{{REQ}}-01",
+        "req": "{{REQ}}",
+        "feature": "{{FEATURE}}",
+        "title": "{{TRIGGER_TEXT}} is followed by {{RESPONSE_TEXT}} within {{MAX_DELAY}} cycles",
+        "kind": "response",
+        "role": "assert",
+        "trigger": "{{TRIGGER}}",
+        "response": "{{RESPONSE}}",
+        "min_delay": 1,
+        "max_delay": 1,
+        "severity": "error",
+        "evidence": {"section": "{{SECTION}}", "quote": "{{QUOTE}}"}
+      },
+      "example": {
+        "id": "PRP-REQ-020-01",
+        "req": "REQ-020",
+        "feature": "F06",
+        "title": "A write request eventually receives a B response",
+        "kind": "response",
+        "role": "assert",
+        "trigger": "i_awvalid && i_wvalid && o_awready && o_wready",
+        "response": "o_bvalid",
+        "min_delay": 1,
+        "max_delay": 8,
+        "severity": "error",
+        "evidence": {"section": "5.6 Write response", "quote": "Every accepted write shall receive a B response within eight clock cycles."}
+      },
+      "avoid": "Do not claim an unbounded eventually: there is no liveness operator. If the spec gives no bound, choose and document the smallest justified bound, or mark the requirement partially_formalized."
+    },
+    {
+      "id": "stable-until-accept",
+      "name": "Stable until accepted",
+      "use_when": "The spec requires a valid/data payload to remain unchanged until the handshake completes.",
+      "kind": "stability",
+      "role": "assert",
+      "fields": {
+        "trigger": "Valid asserted and not yet accepted (e.g. valid && !ready).",
+        "signal": "Payload or control signal that must not change.",
+        "cycles": "Number of following edges over which it must stay stable."
+      },
+      "template": {
+        "id": "PRP-{{REQ}}-01",
+        "req": "{{REQ}}",
+        "feature": "{{FEATURE}}",
+        "title": "{{SIGNAL}} stays stable until {{ACCEPT_CONDITION}}",
+        "kind": "stability",
+        "role": "assert",
+        "trigger": "{{TRIGGER}}",
+        "signal": "{{SIGNAL}}",
+        "cycles": 1,
+        "severity": "error",
+        "evidence": {"section": "{{SECTION}}", "quote": "{{QUOTE}}"}
+      },
+      "example": {
+        "id": "PRP-REQ-030-01",
+        "req": "REQ-030",
+        "feature": "F07",
+        "title": "AW payload stays stable until AW is accepted",
+        "kind": "stability",
+        "role": "assert",
+        "trigger": "i_awvalid && !o_awready",
+        "signal": "i_awaddr",
+        "cycles": 1,
+        "severity": "error",
+        "evidence": {"section": "5.7 AW channel", "quote": "Once i_awvalid is asserted, i_awaddr shall remain stable until o_awready."}
+      },
+      "avoid": "If the sentence constrains an input protocol, this is an assumption, not an assertion: use role assume. Do not use stability for a register's next-state function."
+    },
+    {
+      "id": "cover-reachability",
+      "name": "Reachability cover",
+      "use_when": "A scenario, trigger, mode or boundary condition must be reachable; or an assertion would otherwise be vacuous.",
+      "kind": "cover",
+      "role": "cover",
+      "fields": {
+        "expr": "Condition that must be reachable after reset.",
+        "when": "Optional additional qualification.",
+        "severity": "info unless the spec requires the scenario to exist."
+      },
+      "template": {
+        "id": "COV-{{REQ}}-01",
+        "req": "{{REQ}}",
+        "feature": "{{FEATURE}}",
+        "title": "{{SCENARIO}} is reachable after reset",
+        "kind": "cover",
+        "role": "cover",
+        "expr": "{{EXPR}}",
+        "severity": "info",
+        "tags": ["coverage"],
+        "evidence": {"section": "{{SECTION}}", "quote": "{{QUOTE}}"}
+      },
+      "example": {
+        "id": "COV-REQ-006-01",
+        "req": "REQ-006",
+        "feature": "F02",
+        "title": "An increment at zero is reachable after reset",
+        "kind": "cover",
+        "role": "cover",
+        "expr": "i_inc && q == 4'd0",
+        "severity": "info",
+        "tags": ["coverage"],
+        "evidence": {"section": "5.3 Verification scenarios", "quote": "A cycle with i_inc 1 and q 0 shall be reachable after reset."}
+      },
+      "avoid": "Do not use role assert with kind cover, and do not set severity error unless the spec demands the scenario occur in every run."
+    },
+    {
+      "id": "environment-stability-assumption",
+      "name": "Environment stability assumption",
+      "use_when": "The spec constrains an input protocol that the environment must obey, such as input payload stability.",
+      "kind": "always",
+      "role": "assume",
+      "fields": {
+        "when": "Guard: the protocol condition under which the constraint applies.",
+        "expr": "Constraint on input signals, usually stable(input) or a relation between inputs."
+      },
+      "template": {
+        "id": "ASM-{{REQ}}-01",
+        "req": "{{REQ}}",
+        "feature": "{{FEATURE}}",
+        "title": "The environment holds {{SIGNAL}} while {{CONDITION}}",
+        "kind": "always",
+        "role": "assume",
+        "when": "{{WHEN}}",
+        "expr": "{{EXPR}}",
+        "severity": "error",
+        "evidence": {"section": "{{SECTION}}", "quote": "{{QUOTE}}"}
+      },
+      "example": {
+        "id": "ASM-REQ-040-01",
+        "req": "REQ-040",
+        "feature": "F09",
+        "title": "The host holds AW payload while AW is pending",
+        "kind": "always",
+        "role": "assume",
+        "when": "i_awvalid && !o_awready",
+        "expr": "stable(i_awaddr)",
+        "severity": "error",
+        "evidence": {"section": "6 Host protocol", "quote": "The host shall keep i_awaddr stable while i_awvalid is asserted and o_awready is low."}
+      },
+      "avoid": "Never assume a DUT output, and never assume the behavior a requirement asks the DUT to provide. Guard the assumption; an unguarded assume constrains every cycle."
+    },
+    {
+      "id": "environment-valid-assumption",
+      "name": "Environment valid/payload assumption",
+      "use_when": "The spec defines when an input payload is meaningful, e.g. data is only valid with valid asserted.",
+      "kind": "always",
+      "role": "assume",
+      "fields": {
+        "expr": "Relation between input valid and its payload, or a onehot/range constraint on inputs."
+      },
+      "template": {
+        "id": "ASM-{{REQ}}-01",
+        "req": "{{REQ}}",
+        "feature": "{{FEATURE}}",
+        "title": "Input {{SIGNAL}} obeys its protocol",
+        "kind": "always",
+        "role": "assume",
+        "expr": "{{EXPR}}",
+        "severity": "error",
+        "evidence": {"section": "{{SECTION}}", "quote": "{{QUOTE}}"}
+      },
+      "example": {
+        "id": "ASM-REQ-041-01",
+        "req": "REQ-041",
+        "feature": "F09",
+        "title": "At most one read request is presented",
+        "kind": "always",
+        "role": "assume",
+        "expr": "!(i_arvalid && i_awvalid)",
+        "severity": "error",
+        "evidence": {"section": "6 Host protocol", "quote": "The host shall not assert i_arvalid and i_awvalid in the same cycle."}
+      },
+      "avoid": "Do not assume parameter values; they are resolved at render time. Do not use onehot on a multi-bit payload unless the spec says so."
+    },
+    {
+      "id": "no-output-without-request",
+      "name": "No response without request",
+      "use_when": "The spec forbids an output from asserting unless a corresponding request or enable occurred.",
+      "kind": "always",
+      "role": "assert",
+      "fields": {
+        "expr": "output -> request (use prev(...) when the request is one cycle earlier)."
+      },
+      "template": {
+        "id": "PRP-{{REQ}}-01",
+        "req": "{{REQ}}",
+        "feature": "{{FEATURE}}",
+        "title": "{{OUTPUT}} is asserted only after {{REQUEST}}",
+        "kind": "always",
+        "role": "assert",
+        "expr": "!{{OUTPUT}} || {{REQUEST}}",
+        "severity": "error",
+        "evidence": {"section": "{{SECTION}}", "quote": "{{QUOTE}}"}
+      },
+      "example": {
+        "id": "PRP-REQ-050-01",
+        "req": "REQ-050",
+        "feature": "F10",
+        "title": "A B response is asserted only after a write was accepted",
+        "kind": "always",
+        "role": "assert",
+        "expr": "!o_bvalid || prev(i_awvalid && i_wvalid)",
+        "severity": "error",
+        "evidence": {"section": "5.6 Write response", "quote": "o_bvalid shall be asserted only in response to an accepted write."}
+      },
+      "avoid": "Do not use prev() on the output being checked; prev() is for the earlier request. Do not add this pattern if the spec allows unsolicited responses."
+    },
+    {
+      "id": "parameter-boundary",
+      "name": "Parameter boundary case",
+      "use_when": "The spec defines behavior at a parameter-dependent boundary (maximum, wrap, zero, all-ones).",
+      "kind": "next",
+      "role": "assert",
+      "fields": {
+        "trigger": "Condition at the boundary, written with the resolved parameter.",
+        "expr": "Required boundary value or wrap relation."
+      },
+      "template": {
+        "id": "PRP-{{REQ}}-01",
+        "req": "{{REQ}}",
+        "feature": "{{FEATURE}}",
+        "title": "{{SIGNAL}} wraps at the parameter-dependent maximum",
+        "kind": "next",
+        "role": "assert",
+        "trigger": "{{SIGNAL}} == ({{PARAM}} - 1)",
+        "expr": "{{SIGNAL}} == 0",
+        "severity": "error",
+        "evidence": {"section": "{{SECTION}}", "quote": "{{QUOTE}}"}
+      },
+      "example": {
+        "id": "PRP-REQ-005-01",
+        "req": "REQ-005",
+        "feature": "F02",
+        "title": "An increment at the maximum wraps to zero",
+        "kind": "next",
+        "role": "assert",
+        "trigger": "i_inc && q == (WIDTH - 1)",
+        "expr": "q == 0",
+        "severity": "error",
+        "evidence": {"section": "5.2 Counting", "quote": "When i_inc is 1 and q is 15, q shall wrap to 0 on the next rising edge of i_clk."}
+      },
+      "avoid": "Do not hard-code a value that the spec states in terms of a parameter. Parameters are resolved to integers at render time, so the same contract checks the configured instance only."
+    }
+  ]
+}

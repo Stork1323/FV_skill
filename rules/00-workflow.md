@@ -1,0 +1,28 @@
+# Workflow rules
+
+1. The ordered pipeline is
+   `rules -> extract -> contract -> render -> run -> review -> regress`.
+   `fv.py all` / `fv.py pipeline` is the canonical entry point. Individual
+   commands record their step but do not replace the ordered run for signoff.
+2. The project rule files under `formal/rules/` are generated from the skill
+   and checked before extraction. A hand-edited rule file fails the pipeline;
+   regenerate it instead of editing it.
+3. `extract` is the only place where feature and requirement statements are
+   decided. It reads `{{SPEC}}` and writes `formal/spec/requirements.md` plus
+   `formal/spec/requirements.json`.
+4. Every requirement must have a feature, a source line, a verbatim evidence
+   quote and a clarity value.
+5. Only `clear` requirements may be `formalized`. Anything else produces a
+   question in `formal/reports/questions.md` and must be
+   `partially_formalized`, an `assumption`, `not_formalizable` or
+   `out_of_scope`. A blocking question stops the pipeline before the contract.
+6. The contract is validated before rendering. Rendering before validation is
+   not a supported workflow. The bundle is rebuilt from the current extraction
+   and RTL before validation.
+7. A failing run never updates the regression baseline without `--force`, and
+   a review with errors never updates it unless `--allow-review-errors` is an
+   explicit, documented exception.
+8. Do not edit files under `formal/build`, `formal/src/generated`,
+   `formal/results` or `formal/reports`; they are regenerated.
+9. Do not edit `formal/rules/*`; the files are generated from the skill and
+   their hashes are recorded in every bundle and result.

@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "default": "symbiyosys",
+  "backends": {
+    "symbiyosys": {
+      "kind": "symbiyosys",
+      "description": "SymbiYosys (sby) with the smtbmc engine",
+      "executable": "sby",
+      "engine": "smtbmc",
+      "timeout_s": 300
+    },
+    "yosys": {
+      "kind": "yosys",
+      "description": "Direct Yosys SAT, shipped as the dependency-free fallback",
+      "executable": "yosys",
+      "timeout_s": 300
+    },
+    "vc_formal": {
+      "kind": "command",
+      "description": "VC Formal or any commercial prover, via a command template",
+      "enabled": false,
+      "executable": "vc_fv",
+      "command": [],
+      "script_template": "",
+      "script_extension": ".tcl",
+      "result_pattern": "^(?:RESULT|STATUS)\\s*[:=]\\s*(?P<status>PROVEN|PASS|FAIL|ERROR|TIMEOUT)\\b",
+      "status_map": {
+        "PROVEN": "PROVEN",
+        "PASS": "BMC_PASS",
+        "FAIL": "FAIL",
+        "ERROR": "ERROR",
+        "TIMEOUT": "TIMEOUT"
+      },
+      "timeout_s": 300
+    }
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "metadata": {
+    "ip_name": "counter",
+    "spec_revision": "1.0",
+    "phase": 2,
+    "gate_status": "approved",
+    "gate_2_approved": true,
+    "top_module": "counter",
+    "rejected_overrides": []
+  },
+  "parameters": {
+    "WIDTH": {
+      "value": "4",
+      "default": "4",
+      "type": "int",
+      "changed_from_default": false,
+      "confirmed_by_user": true,
+      "locked": false,
+      "req_ids_affected": ["REQ-003", "REQ-004", "REQ-005", "REQ-006", "REQ-007"],
+      "feature_ids_affected": ["F01", "F02"]
+    }
+  },
+  "constraints": {
+    "C1": {
+      "rule": "WIDTH >= 1 && WIDTH <= 8",
+      "pass": true,
+      "detail": "holds"
+    }
+  },
+  "style_constraints": {
+    "natural_language_additions": [],
+    "lint_rules": []
+  },
+  "feature_matrix": [
+    {
+      "id": "F01",
+      "name": "Parameterized counter with an asynchronous active-low reset",
+      "class": "Mandatory",
+      "requirements": ["REQ-001", "REQ-002", "REQ-007"]
+    },
+    {
+      "id": "F02",
+      "name": "Increment enable with wrap from the maximum value to zero",
+      "class": "Mandatory",
+      "requirements": ["REQ-003", "REQ-004", "REQ-005", "REQ-006"]
+    }
+  ]
+}

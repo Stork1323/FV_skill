@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-11-21T01:38:42+00:00",
+  "generated_by": "formal-sva/fv_rules.py",
+  "skill_version": "1.1.0",
+  "design": "counter",
+  "top": "counter",
+  "spec": "spec/spec.md",
+  "spec_sha256": "ff7caa42d3d91f43a18e4dbff0935d47b4cdf418fecf07cf7c6eea3ed3291177",
+  "tools": "formal/tools.json",
+  "tools_sha256": "5b75cd23599a2abc4769428df996cf43d3ef9d01d0dfe1013e5697be0ce40406",
+  "files": {
+    "00-workflow.md": "bf216aebd94c1da9bbb317f4cc979c84976c322c310e15f11eec727d8d338b42",
+    "10-extraction.md": "7c0372547c38515c5a345c315092d3da17851510ec2decc29fcf91b1c57332c5",
+    "20-contract.md": "9b8170fde068e3853e2561ba2c92564013afc0864c6c3acbee2706942ec96716",
+    "30-sva.md": "e1d4d76a7a80b21e838c40c9e9659a5e8ec6f18270f96e00a41578166e06421d",
+    "40-run.md": "ddfe4bce01fd1ea4618e3155ddbd966c98bd67697847b9c3b79476b86943a424",
+    "50-review.md": "85315f2e9d3ba6d12ca2354cf304b84a9e43ff596c9f0975148a08276eaad86c",
+    "60-report.md": "f04749716183e804d1309071b04641df932623ab92dd02417b5829784ad2f9ba",
+    "70-regression.md": "36e8e3d884031ac73e40939fee84862805f059b7cb7f09037c3c4ce180bd6bcf"
+  },
+  "rules_sha256": "cfa45edf127def95092ef774c6923d44528a9e755b06f2d4e502e0ee4c0591dc"
+}

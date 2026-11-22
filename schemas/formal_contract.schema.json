@@ -1,0 +1,128 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://q3tui.local/formal-sva/formal_contract.schema.json",
+  "title": "Formal SVA contract",
+  "description": "Traceable requirements -> SVA properties contract of the formal-sva skill. Every property cites one Q3TUI requirement and one verbatim evidence quote.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "design", "requirements", "properties", "scope"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "design": {"$ref": "#/$defs/design"},
+    "requirements": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/requirement"}
+    },
+    "properties": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/property"}
+    },
+    "scope": {"$ref": "#/$defs/scope"},
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "$defs": {
+    "design": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "top", "clock", "reset", "parameters"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "top": {"type": "string", "minLength": 1},
+        "clock": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["signal", "edge"],
+          "properties": {
+            "signal": {"type": "string", "minLength": 1},
+            "edge": {"enum": ["posedge", "negedge"]}
+          }
+        },
+        "reset": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["signal", "active", "kind"],
+          "properties": {
+            "signal": {"type": "string", "minLength": 1},
+            "active": {"enum": ["low", "high"]},
+            "kind": {"enum": ["async", "sync", "unknown"]},
+            "cycles": {"type": "integer", "minimum": 1}
+          }
+        },
+        "parameters": {
+          "type": "object",
+          "additionalProperties": {"type": "integer"}
+        },
+        "notes": {"type": "string"}
+      }
+    },
+    "requirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "disposition", "reason"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "feature": {"type": "string"},
+        "disposition": {"enum": ["formalized", "partially_formalized", "assumption", "not_formalizable", "out_of_scope"]},
+        "reason": {"type": "string", "minLength": 20},
+        "limitations": {"type": "string", "minLength": 20},
+        "evidence": {"$ref": "#/$defs/evidence"},
+        "properties": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["section", "quote"],
+      "properties": {
+        "section": {"type": "string", "minLength": 1},
+        "quote": {"type": "string", "minLength": 20}
+      }
+    },
+    "property": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "req", "kind", "role", "title", "evidence"],
+      "properties": {
+        "id": {"type": "string", "minLength": 6},
+        "req": {"type": "string", "minLength": 1},
+        "feature": {"type": "string"},
+        "title": {"type": "string", "minLength": 8},
+        "kind": {"enum": ["always", "next", "response", "stability", "reset_value", "cover"]},
+        "role": {"enum": ["assert", "assume", "cover"]},
+        "when": {"type": "string"},
+        "expr": {"type": "string"},
+        "trigger": {"type": "string"},
+        "response": {"type": "string"},
+        "min_delay": {"type": "integer", "minimum": 1},
+        "max_delay": {"type": "integer", "minimum": 1},
+        "signal": {"type": "string"},
+        "cycles": {"type": "integer", "minimum": 1},
+        "disable_reset": {"type": "boolean"},
+        "depth": {"type": "integer", "minimum": 1},
+        "severity": {"enum": ["error", "warning", "info"]},
+        "tags": {"type": "array", "items": {"type": "string"}},
+        "evidence": {"$ref": "#/$defs/evidence"},
+        "notes": {"type": "string"}
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["configuration", "proven", "not_proven"],
+      "properties": {
+        "configuration": {
+          "type": "object",
+          "additionalProperties": {"type": ["integer", "string"]}
+        },
+        "proven": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "not_proven": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "notes": {"type": "string"}
+      }
+    }
+  }
+}

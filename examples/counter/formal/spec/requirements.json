@@ -1,0 +1,159 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-11-21T01:38:42+00:00",
+  "generated_by": "formal-sva/fv_extract.py",
+  "design": {
+    "name": "counter",
+    "top": "counter",
+    "spec": "spec/spec.md",
+    "spec_sha256": "ff7caa42d3d91f43a18e4dbff0935d47b4cdf418fecf07cf7c6eea3ed3291177",
+    "extraction": "formal/spec/requirements.md",
+    "extraction_sha256": "2ca5c9213d83034c472fe99d72dd7ef80ef7d82a6230ad28cacf1e75cac3e06a",
+    "design": "formal/design.json",
+    "rules_sha256": ""
+  },
+  "features": [
+    {
+      "id": "F01",
+      "class": "Mandatory",
+      "text": "Parameterized counter with an asynchronous active-low reset",
+      "source": "",
+      "requirements": [
+        "REQ-001",
+        "REQ-002",
+        "REQ-007"
+      ]
+    },
+    {
+      "id": "F02",
+      "class": "Mandatory",
+      "text": "Increment enable with wrap from the maximum value to zero",
+      "source": "",
+      "requirements": [
+        "REQ-003",
+        "REQ-004",
+        "REQ-005",
+        "REQ-006"
+      ]
+    }
+  ],
+  "requirements": [
+    {
+      "id": "REQ-001",
+      "title": "While i_rst_n is low, q shall be 4'b0000.",
+      "feature": "F01",
+      "category": "reset",
+      "text": "While i_rst_n is low, q shall be 4'b0000.",
+      "source": "L37",
+      "evidence": "While `i_rst_n` is low, `q` shall be `4'b0000`. Reset assertion is asynchronous;",
+      "clarity": "clear",
+      "question": "",
+      "owner": "spec_agent",
+      "blocking": false,
+      "proposed": "always",
+      "notes": ""
+    },
+    {
+      "id": "REQ-002",
+      "title": "q shall change only on the rising edge of i_clk.",
+      "feature": "F01",
+      "category": "interface",
+      "text": "q shall change only on the rising edge of i_clk.",
+      "source": "L42",
+      "evidence": "`q` shall change only on the rising edge of `i_clk`.",
+      "clarity": "clear",
+      "question": "",
+      "owner": "spec_agent",
+      "blocking": false,
+      "proposed": "static",
+      "notes": ""
+    },
+    {
+      "id": "REQ-003",
+      "title": "When i_inc is 1 and q is not 15, q shall increment by 1 on the next rising edge",
+      "feature": "F02",
+      "category": "functional",
+      "text": "When i_inc is 1 and q is not 15, q shall increment by 1 on the next rising edge of i_clk.",
+      "source": "L44",
+      "evidence": "When `i_inc` is 1 and `q` is not 15, `q` shall increment by 1 on the next rising edge of `i_clk`.",
+      "clarity": "clear",
+      "question": "",
+      "owner": "spec_agent",
+      "blocking": false,
+      "proposed": "always",
+      "notes": ""
+    },
+    {
+      "id": "REQ-004",
+      "title": "When i_inc is 0, q shall hold its value on the next rising edge of i_clk.",
+      "feature": "F02",
+      "category": "functional",
+      "text": "When i_inc is 0, q shall hold its value on the next rising edge of i_clk.",
+      "source": "L46",
+      "evidence": "When `i_inc` is 0, `q` shall hold its value on the next rising edge of `i_clk`.",
+      "clarity": "clear",
+      "question": "",
+      "owner": "spec_agent",
+      "blocking": false,
+      "proposed": "always",
+      "notes": ""
+    },
+    {
+      "id": "REQ-005",
+      "title": "When i_inc is 1 and q is 15, q shall wrap to 0 on the next rising edge of i_clk.",
+      "feature": "F02",
+      "category": "functional",
+      "text": "When i_inc is 1 and q is 15, q shall wrap to 0 on the next rising edge of i_clk.",
+      "source": "L48",
+      "evidence": "When `i_inc` is 1 and `q` is 15, `q` shall wrap to 0 on the next rising edge of `i_clk`.",
+      "clarity": "clear",
+      "question": "",
+      "owner": "spec_agent",
+      "blocking": false,
+      "proposed": "always",
+      "notes": ""
+    },
+    {
+      "id": "REQ-006",
+      "title": "A cycle with i_inc 1 and q 0 shall be reachable after reset.",
+      "feature": "F02",
+      "category": "verification",
+      "text": "A cycle with i_inc 1 and q 0 shall be reachable after reset.",
+      "source": "L52",
+      "evidence": "A cycle with `i_inc` 1 and `q` 0 shall be reachable after reset.",
+      "clarity": "clear",
+      "question": "",
+      "owner": "spec_agent",
+      "blocking": false,
+      "proposed": "cover",
+      "notes": ""
+    },
+    {
+      "id": "REQ-007",
+      "title": "The counter output q shall be WIDTH bits wide.",
+      "feature": "F01",
+      "category": "interface",
+      "text": "The counter output q shall be WIDTH bits wide.",
+      "source": "L56",
+      "evidence": "The counter output `q` shall be `WIDTH` bits wide.",
+      "clarity": "clear",
+      "question": "",
+      "owner": "spec_agent",
+      "blocking": false,
+      "proposed": "static",
+      "notes": ""
+    }
+  ],
+  "stats": {
+    "features": 2,
+    "requirements": 7,
+    "clear": 7,
+    "unclear": 0,
+    "blocking": 0,
+    "errors": 0,
+    "warnings": 0,
+    "ready": true
+  },
+  "errors": [],
+  "warnings": []
+}

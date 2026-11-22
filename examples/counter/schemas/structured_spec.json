@@ -1,0 +1,128 @@
+{
+  "metadata": {
+    "ip_name": "counter",
+    "spec_revision": "1.0",
+    "phase": 1,
+    "gate_status": "approved",
+    "gate_1_approved": true,
+    "top_module": "counter",
+    "description": "Parameterized binary counter with an asynchronous active-low reset and an increment enable."
+  },
+  "requirements": [
+    {
+      "req_id": "REQ-001",
+      "text": "While i_rst_n is low, q shall be 4'b0000.",
+      "category": "reset",
+      "ambiguity_score": 0.0,
+      "needs_review": false,
+      "needs_human_decision": false,
+      "source_section": "5.1 Reset",
+      "parameters_affected": [],
+      "feature_id": "F01",
+      "sva_hint": "property",
+      "optional": false,
+      "rtl_modules": ["counter"]
+    },
+    {
+      "req_id": "REQ-002",
+      "text": "q shall change only on the rising edge of i_clk.",
+      "category": "interface",
+      "ambiguity_score": 0.05,
+      "needs_review": false,
+      "needs_human_decision": false,
+      "source_section": "5.2 Counting",
+      "parameters_affected": [],
+      "feature_id": "F01",
+      "sva_hint": "static",
+      "optional": false,
+      "rtl_modules": ["counter"]
+    },
+    {
+      "req_id": "REQ-003",
+      "text": "When i_inc is 1 and q is not 15, q shall increment by 1 on the next rising edge of i_clk.",
+      "category": "functional",
+      "ambiguity_score": 0.05,
+      "needs_review": false,
+      "needs_human_decision": false,
+      "source_section": "5.2 Counting",
+      "parameters_affected": ["WIDTH"],
+      "feature_id": "F02",
+      "sva_hint": "property",
+      "optional": false,
+      "rtl_modules": ["counter"]
+    },
+    {
+      "req_id": "REQ-004",
+      "text": "When i_inc is 0, q shall hold its value on the next rising edge of i_clk.",
+      "category": "functional",
+      "ambiguity_score": 0.05,
+      "needs_review": false,
+      "needs_human_decision": false,
+      "source_section": "5.2 Counting",
+      "parameters_affected": ["WIDTH"],
+      "feature_id": "F02",
+      "sva_hint": "property",
+      "optional": false,
+      "rtl_modules": ["counter"]
+    },
+    {
+      "req_id": "REQ-005",
+      "text": "When i_inc is 1 and q is 15, q shall wrap to 0 on the next rising edge of i_clk.",
+      "category": "functional",
+      "ambiguity_score": 0.05,
+      "needs_review": false,
+      "needs_human_decision": false,
+      "source_section": "5.2 Counting",
+      "parameters_affected": ["WIDTH"],
+      "feature_id": "F02",
+      "sva_hint": "property",
+      "optional": false,
+      "rtl_modules": ["counter"]
+    },
+    {
+      "req_id": "REQ-006",
+      "text": "A cycle with i_inc 1 and q 0 shall be reachable after reset.",
+      "category": "verification",
+      "ambiguity_score": 0.0,
+      "needs_review": false,
+      "needs_human_decision": false,
+      "source_section": "5.3 Verification scenarios",
+      "parameters_affected": ["WIDTH"],
+      "feature_id": "F02",
+      "sva_hint": "cover",
+      "optional": false,
+      "rtl_modules": ["counter"]
+    },
+    {
+      "req_id": "REQ-007",
+      "text": "The counter output q shall be WIDTH bits wide.",
+      "category": "interface",
+      "ambiguity_score": 0.0,
+      "needs_review": false,
+      "needs_human_decision": false,
+      "source_section": "6 Notes and Open Items",
+      "parameters_affected": ["WIDTH"],
+      "feature_id": "F01",
+      "sva_hint": "static",
+      "optional": false,
+      "rtl_modules": ["counter"]
+    }
+  ],
+  "parameters": [
+    {
+      "name": "WIDTH",
+      "type": "int",
+      "default": "4",
+      "valid_range": "1..8",
+      "description": "Width of the counter output q."
+    }
+  ],
+  "constraints": [],
+  "modules": [
+    {
+      "name": "counter",
+      "path": "src/rtl/counter.sv",
+      "role": "top"
+    }
+  ]
+}

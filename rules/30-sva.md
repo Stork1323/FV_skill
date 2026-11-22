@@ -1,0 +1,19 @@
+# SVA generation rules
+
+1. `fv.py render` produces two forms from one contract:
+   - `formal/src/generated/fv_sva_checker.sv`: standard SVA for commercial
+     tools;
+   - `formal/src/generated/fv_*_monitor.sv` and `fv_*_top.sv`: the backend
+     harness used by the selected tool.
+2. Only top-level interface names and baked parameter values may appear in a
+   monitor or checker. Internal hierarchy names are forbidden.
+3. History is explicit. The renderer creates one history register per distinct
+   `prev/rose/fell/stable` argument and flushes it during reset.
+4. The first state has `fv_start = 0`; assertions arm after reset. A wrapper
+   that drives `fv_start` must preserve that contract.
+5. The standard SVA file is generated evidence; it is not executed by the
+   default Yosys run. The selected backend must run the monitor harness.
+6. Do not hand-edit generated files. Change the contract and re-run
+   `fv.py render`.
+7. A parameter left unresolved in a monitor is a generation error, not a
+   cosmetic issue. `fv.py review` reports it.
