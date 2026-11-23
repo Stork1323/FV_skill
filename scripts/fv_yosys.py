@@ -42,6 +42,10 @@ GOOD_ASSERT = {"PROVEN", "BMC_PASS"}
 GOOD_COVER = {"COVERED"}
 GOOD_ASSUME = {"ASSUMED"}
 
+# A cover/assume "not found" in BMC is bounded absence of witness, not a proof
+# of unreachability.  The backend must say PROVEN_UNREACHABLE explicitly.
+COVER_NOT_REACHED = "NOT_REACHED_WITHIN_BOUND"
+
 
 def _qpath(path: Path | str) -> str:
     s = str(path)
@@ -312,9 +316,12 @@ def run_property(harness: dict[str, Any], prop: dict[str, Any],
         reachable = bmc_parsed["result"] == "fail"
         result["counterexample"] = parse_counterexample(bmc.get("output") or "")
         if prop.get("mode") == "cover":
-            result["status"] = "COVERED" if reachable else "UNREACHABLE"
+            result["status"] = "COVERED" if reachable else COVER_NOT_REACHED
         else:
             result["status"] = "ASSUMED" if reachable else "VACUOUS"
+        result["status_reason"] = (
+            "Witness found within bound." if reachable else
+            "No witness found within bound; this is not a proof of unreachability.")
         if not quiet:
             eprint(f"[{pid}] {result['status']} ({result['elapsed_s']}s)")
         return result
@@ -411,5 +418,5 @@ if __name__ == "__main__":
         print(f"{res['id']}: {res['status']}")
         if res.get("error"):
             print(res["error"])
-    good = {"PROVEN", "BMC_PASS", "COVERED", "ASSUMED"}
+    good = {"PROVEN", "BMC_PASS", "COVERED", "ASSUMED", "NOT_REACHED_WITHIN_BOUND"}
     raise SystemExit(0 if res["status"] in good else 1)

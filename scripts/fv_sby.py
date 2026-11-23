@@ -135,7 +135,8 @@ def _read_command(harness: dict[str, Any], files: list[Path]) -> str:
 
 
 def _sby_text(harness: dict[str, Any], prop: dict[str, Any], mode: str,
-              depth: int, files: list[Path], cfg: dict[str, Any]) -> str:
+              depth: int, files: list[Path], cfg: dict[str, Any],
+              top: str | None = None) -> str:
     formal = harness.get("formal") or {}
     engine = str(cfg.get("engine") or formal.get("sby_engine") or "smtbmc")
     lines = [
@@ -148,7 +149,7 @@ def _sby_text(harness: dict[str, Any], prop: dict[str, Any], mode: str,
         "",
         "[script]",
         _read_command(harness, files),
-        f"prep -top {prop['top']} -flatten",
+        f"prep -top {top or prop['top']} -flatten",
         "async2sync",
         "memory_map",
         "opt -fast",
@@ -219,12 +220,14 @@ def run_property(harness: dict[str, Any], prop: dict[str, Any], cfg: dict[str, A
     cover = mode in ("cover", "assume")
 
     def run_phase(phase: str, ind: bool) -> dict[str, Any]:
+        phase_top = f"{prop['top']}_{phase}"
         wrapper = build / f"{phase}_top.sv"
-        write_text(wrapper, _wrapper(harness, prop, f"{prop['top']}_{phase}", ind, cover))
+        write_text(wrapper, _wrapper(harness, prop, phase_top, ind, cover))
         files = harness_files(harness, prop) + [wrapper]
         sby_mode = "cover" if cover else ("prove" if ind else "bmc")
         sby_file = build / f"{phase}.sby"
-        write_text(sby_file, _sby_text(harness, prop, sby_mode, actual_depth, files, cfg))
+        write_text(sby_file, _sby_text(harness, prop, sby_mode, actual_depth, files, cfg,
+                                       top=phase_top))
         if not quiet:
             eprint(f"[{pid}] sby {phase} mode={sby_mode} depth={actual_depth}")
         res = run_cmd(["sby", "-f", str(sby_file)], cwd=build, timeout_s=actual_timeout)
@@ -285,7 +288,10 @@ def run_property(harness: dict[str, Any], prop: dict[str, Any], cfg: dict[str, A
         result["counterexample"] = _counterexample(bmc.get("output") or "")
         result["status"] = (("COVERED" if mode == "cover" else "ASSUMED")
                             if reachable else
-                            ("UNREACHABLE" if mode == "cover" else "VACUOUS"))
+                            ("NOT_REACHED_WITHIN_BOUND" if mode == "cover" else "VACUOUS"))
+        result["status_reason"] = (
+            "Witness found within bound." if reachable else
+            "No witness found within bound; this is not a proof of unreachability.")
         if not quiet:
             eprint(f"[{pid}] {result['status']} ({result['elapsed_s']}s)")
         return result

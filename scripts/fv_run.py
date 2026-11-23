@@ -8,6 +8,7 @@ counterexample rows.  ``BMC_PASS`` is deliberately reported separately from
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import time
@@ -31,10 +32,28 @@ from fv_common import (
 from fv_backends import run_property
 from fv_yosys import load_harness
 
-RUN_SCHEMA_VERSION = "1.0"
+RUN_SCHEMA_VERSION = "1.1"
 
-BAD_ERROR = {"FAIL", "ERROR", "TIMEOUT"}
-WARN_ERROR = {"UNREACHABLE", "VACUOUS"}
+BAD_ERROR = {"FAIL", "ERROR", "TIMEOUT", "INCOMPLETE_OBLIGATION"}
+WARN_ERROR = {"UNREACHABLE", "VACUOUS", "NOT_REACHED_WITHIN_BOUND", "ASSUMED_UNCHECKED"}
+
+STATUS_REASONS = {
+    "PROVEN": "The base case passed and the induction step proved the property for all reachable states under the recorded assumptions and configuration.",
+    "BMC_PASS": "No counterexample was found within the bounded search, but induction did not prove the property; this is bounded evidence, not an unbounded proof.",
+    "PARTIALLY_PROVEN": "Some required proof obligations discharged, but at least one required obligation remains bounded, missing, or inconclusive.",
+    "COVERED": "The solver found a witness trace that reaches the cover condition within the configured bound.",
+    "NOT_REACHED_WITHIN_BOUND": "No witness was found within the configured bound; this does not prove the scenario unreachable.",
+    "PROVEN_UNREACHABLE": "The backend proved the cover condition is unreachable under the recorded assumptions and configuration.",
+    "UNREACHABLE": "The backend reported the cover condition unreachable within the selected proof mode; treat as not reached/proven-unreachable only when the backend classifies it explicitly.",
+    "VACUOUS": "The assumption's active guard/antecedent was not reached, so the assumption may be vacuous and provide no useful constraint.",
+    "ASSUMED": "The assumption was reachable and active in at least one witness within the bound.",
+    "ASSUMED_UNCHECKED": "The assumption was not checked for satisfiability/reachability in this run.",
+    "INCOMPLETE_OBLIGATION": "The requirement has required proof obligations that were not fully discharged.",
+    "FAIL": "The solver found a counterexample or the obligation was violated.",
+    "ERROR": "The backend or harness could not produce a trustworthy result; logs and result classification must be inspected.",
+    "TIMEOUT": "The solver did not finish within the configured time/bound budget.",
+    "SKIPPED": "The check was intentionally not executed; record the reason and closure impact.",
+}
 
 
 def _now() -> str:
@@ -110,9 +129,25 @@ def ensure_harness(manifest: dict[str, Any], contract_path: Path | None = None,
     return harness
 
 
+def status_reason(prop: dict[str, Any]) -> str:
+    status = str(prop.get("status") or "UNKNOWN")
+    base = STATUS_REASONS.get(status, "No status explanation is available.")
+    extra: list[str] = []
+    bmc = prop.get("bmc") or {}
+    ind = prop.get("induction") or {}
+    if bmc.get("line"):
+        extra.append(f"BMC: {bmc['line']}")
+    if ind and ind.get("line"):
+        extra.append(f"Induction: {ind['line']}")
+    if prop.get("error"):
+        extra.append(f"Detail: {prop['error']}")
+    if extra:
+        return base + " " + " ".join(extra[:2])
+    return base
+
+
 def triage(prop: dict[str, Any]) -> str:
     status = prop.get("status")
-    mode = prop.get("mode")
     if status == "FAIL":
         return ("BMC found a counterexample. Check the evidence quote and the property "
                 "against the RTL; if the RTL is correct, the requirement may be "
@@ -127,10 +162,11 @@ def triage(prop: dict[str, Any]) -> str:
         return ("The solver timed out. Increase formal.timeout_s or reduce depth, and "
                 "consider splitting the property or adding legal environment "
                 "assumptions.")
-    if status == "UNREACHABLE":
-        return ("The cover condition was not reachable within the depth. Confirm the "
+    if status in ("UNREACHABLE", "NOT_REACHED_WITHIN_BOUND"):
+        return ("The cover condition was not reached within the bound. Confirm the "
                 "scenario is legal, add environment assumptions/stimulus, or increase "
-                "the depth.")
+                "the depth. Do not treat this as proven unreachable unless the backend "
+                "explicitly proves it.")
     if status == "VACUOUS":
         return ("The assumption's active condition is unreachable within the depth, so "
                 "the assumption may be vacuous. Review its guard or add a cover for it.")
@@ -145,39 +181,73 @@ def triage(prop: dict[str, Any]) -> str:
     if status == "ASSUMED":
         return ("The assumption is satisfiable and active in at least one reachable "
                 "state within the depth.")
-    return ""
+    return STATUS_REASONS.get(str(status), "")
 
 
-def _property_aggregate(props: list[dict[str, Any]]) -> str:
+def _property_aggregate(props: list[dict[str, Any]], disposition: str = "") -> str:
     if not props:
         return "NOT_FORMALIZED"
-    statuses = [p.get("status") for p in props]
+    statuses = [str(p.get("status")) for p in props]
+    roles = [str(p.get("role")) for p in props]
     for bad in ("ERROR", "TIMEOUT", "FAIL"):
         if bad in statuses:
             return bad
-    if any(p.get("status") == "UNREACHABLE" and p.get("severity") == "error" for p in props):
+    # An assumption-only requirement is satisfied only by assumption checks.
+    if disposition == "assumption":
+        if "VACUOUS" in statuses:
+            return "VACUOUS"
+        if statuses and all(s == "ASSUMED" for s in statuses):
+            return "ASSUMED"
+        return "INCOMPLETE_OBLIGATION"
+    assertions = [p for p in props if p.get("role") == "assert"]
+    covers = [p for p in props if p.get("role") == "cover"]
+    assert_statuses = [str(p.get("status")) for p in assertions]
+    cover_statuses = [str(p.get("status")) for p in covers]
+    if any(p.get("status") in ("UNREACHABLE", "NOT_REACHED_WITHIN_BOUND")
+           and p.get("severity") == "error" for p in covers):
         return "FAIL"
-    if "PROVEN" in statuses:
-        return "PROVEN"
-    if "COVERED" in statuses:
-        return "COVERED"
+    if disposition == "formalized":
+        # Every required assertion must be discharged; covers cannot replace them.
+        if assertions and not all(s in ("PROVEN", "BMC_PASS") for s in assert_statuses):
+            if any(s in BAD_ERROR for s in assert_statuses):
+                return next(s for s in assert_statuses if s in BAD_ERROR)
+            return "INCOMPLETE_OBLIGATION"
+        if assertions and all(s == "PROVEN" for s in assert_statuses):
+            if covers and any(s not in ("COVERED", "PROVEN_UNREACHABLE") for s in cover_statuses):
+                # Proofs are complete, but reachability evidence is incomplete.
+                return "PARTIALLY_PROVEN"
+            return "PROVEN"
+        if assertions and all(s in ("PROVEN", "BMC_PASS") for s in assert_statuses):
+            return "BMC_PASS"
+    # Partially formalized / mixed: report strongest available evidence but never
+    # claim full proof.
+    if "PROVEN" in statuses and "BMC_PASS" not in statuses and "FAIL" not in statuses:
+        return "PARTIALLY_PROVEN" if disposition == "partially_formalized" else "PROVEN"
     if "BMC_PASS" in statuses:
         return "BMC_PASS"
+    if "COVERED" in statuses:
+        return "COVERED"
     if "ASSUMED" in statuses:
         return "ASSUMED"
     if "VACUOUS" in statuses:
         return "VACUOUS"
+    if "NOT_REACHED_WITHIN_BOUND" in statuses:
+        return "NOT_REACHED_WITHIN_BOUND"
     if "UNREACHABLE" in statuses:
         return "UNREACHABLE"
     return "UNKNOWN"
 
 
-def _overall(properties: list[dict[str, Any]]) -> str:
+def _overall(properties: list[dict[str, Any]], requirements: list[dict[str, Any]] | None = None) -> str:
     for p in properties:
         status = p.get("status")
         if status in BAD_ERROR:
             return "FAIL"
         if status in WARN_ERROR and p.get("severity") == "error":
+            return "FAIL"
+    for req in requirements or []:
+        if req.get("status") in BAD_ERROR and req.get("disposition") in (
+                "formalized", "partially_formalized", "assumption"):
             return "FAIL"
     return "PASS"
 
@@ -187,16 +257,18 @@ def _summary(properties: list[dict[str, Any]], requirements: list[dict[str, Any]
     for p in properties:
         counts[p.get("status", "UNKNOWN")] = counts.get(p.get("status", "UNKNOWN"), 0) + 1
     return {
-        "overall": _overall(properties),
+        "overall": _overall(properties, requirements),
         "properties": len(properties),
         "requirements": len(requirements),
         "proven": counts.get("PROVEN", 0),
         "bmc_pass": counts.get("BMC_PASS", 0),
         "covered": counts.get("COVERED", 0),
-        "unreachable": counts.get("UNREACHABLE", 0),
+        "not_reached_within_bound": counts.get("NOT_REACHED_WITHIN_BOUND", 0),
+        "unreachable": counts.get("UNREACHABLE", 0) + counts.get("PROVEN_UNREACHABLE", 0),
         "assumed": counts.get("ASSUMED", 0),
         "vacuous": counts.get("VACUOUS", 0),
         "partial": sum(1 for r in requirements if r.get("disposition") == "partially_formalized"),
+        "incomplete_obligations": counts.get("INCOMPLETE_OBLIGATION", 0),
         "fail": counts.get("FAIL", 0),
         "error": counts.get("ERROR", 0),
         "timeout": counts.get("TIMEOUT", 0),
@@ -216,7 +288,7 @@ def _requirements(contract: dict[str, Any], bundle: dict[str, Any],
                       if str(r.get("id")) == rid), {})
         plist = by_req.get(rid, [])
         disposition = c_req.get("disposition") or "missing"
-        status = (_property_aggregate(plist)
+        status = (_property_aggregate(plist, disposition)
                   if disposition in ("formalized", "partially_formalized", "assumption")
                   else disposition.upper())
         sev_rank = {"info": 0, "warning": 1, "error": 2}
@@ -224,6 +296,9 @@ def _requirements(contract: dict[str, Any], bundle: dict[str, Any],
         if plist:
             severity = max((p.get("severity") or "error" for p in plist),
                            key=lambda x: sev_rank.get(x, 2))
+        req_reason = STATUS_REASONS.get(status, "")
+        if disposition in ("not_formalizable", "out_of_scope"):
+            req_reason = str(c_req.get("reason") or req_reason)
         out.append({
             "id": rid,
             "feature": req.get("feature"),
@@ -237,6 +312,7 @@ def _requirements(contract: dict[str, Any], bundle: dict[str, Any],
             "properties": [p.get("id") for p in plist],
             "severity": severity,
             "status": status,
+            "status_reason": req_reason,
         })
     return out
 
@@ -321,9 +397,39 @@ def _limitations(harness: dict[str, Any], backend: str) -> list[str]:
     ]
 
 
+def _signoff(results: dict[str, Any]) -> dict[str, Any]:
+    summary = results.get("summary") or {}
+    reqs = results.get("requirements") or []
+    props = results.get("properties") or []
+    review = results.get("review") or {}
+    blocking = []
+    if summary.get("overall") != "PASS":
+        blocking.append("verification run is not PASS")
+    if any(r.get("disposition") in ("formalized", "partially_formalized")
+           and r.get("status") in BAD_ERROR for r in reqs):
+        blocking.append("one or more formalized requirements are not discharged")
+    if any(p.get("role") == "assume" and p.get("status") != "ASSUMED" for p in props):
+        blocking.append("assumptions are not all satisfiable/checked")
+    if review.get("overall") == "ACTION_REQUIRED":
+        blocking.append("SVA/constraint review requires action")
+    return {
+        "execution_complete": all(p.get("status") not in ("ERROR", "TIMEOUT") for p in props),
+        "proof_complete": all(r.get("status") == "PROVEN" for r in reqs
+                              if r.get("disposition") == "formalized"),
+        "reachability_checked": not any(p.get("role") == "cover"
+                                        and p.get("status") in ("UNREACHABLE", "NOT_REACHED_WITHIN_BOUND")
+                                        for p in props),
+        "environment_checked": all(p.get("status") == "ASSUMED" for p in props if p.get("role") == "assume"),
+        "no_requirement_gaps": not any(r.get("status") in BAD_ERROR for r in reqs),
+        "signoff_ready": not blocking,
+        "blocking_reasons": blocking,
+    }
+
+
 def _markdown(results: dict[str, Any]) -> str:
     design = results.get("design") or {}
     summary = results.get("summary") or {}
+    signoff = results.get("signoff") or _signoff(results)
     lines: list[str] = []
     lines.append(f"# Formal verification report: {design.get('name') or design.get('top')}")
     lines.append("")
@@ -340,6 +446,14 @@ def _markdown(results: dict[str, Any]) -> str:
     lines.append(f"- **Generated:** {results.get('generated_at')}")
     lines.append(f"- **Overall:** **{summary.get('overall')}**")
     lines.append("")
+    lines.append("## Human-readable summary")
+    lines.append("")
+    lines.append(f"This run checked **{summary.get('properties', 0)}** properties across "
+                 f"**{summary.get('requirements', 0)}** requirements. "
+                 f"**{summary.get('proven', 0)}** proven, **{summary.get('bmc_pass', 0)}** bounded-pass only, "
+                 f"**{summary.get('covered', 0)}** covered, **{summary.get('fail', 0)}** failed, "
+                 f"**{summary.get('error', 0)}** errors, **{summary.get('timeout', 0)}** timeouts.")
+    lines.append("")
     lines.append("## Summary")
     lines.append("")
     lines.append("| Metric | Count |")
@@ -347,13 +461,41 @@ def _markdown(results: dict[str, Any]) -> str:
     labels = {
         "properties": "Properties", "requirements": "Requirements",
         "proven": "Proven", "bmc_pass": "BMC pass (not proven)",
-        "covered": "Covered", "unreachable": "Unreachable covers",
+        "covered": "Covered",
+        "not_reached_within_bound": "Not reached within bound",
+        "unreachable": "Unreachable/proven unreachable",
         "assumed": "Assumptions satisfiable", "vacuous": "Vacuous assumptions",
         "partial": "Partially formalized requirements",
+        "incomplete_obligations": "Incomplete obligations",
         "fail": "Failed", "error": "Errors", "timeout": "Timeouts",
     }
     for key, label in labels.items():
-        lines.append(f"| {label} | {summary.get(key, 0)} |")
+        if key in summary:
+            lines.append(f"| {label} | {summary.get(key, 0)} |")
+    lines.append("")
+    lines.append("## What to do with this report")
+    lines.append("")
+    lines.append("### Spec / Architecture")
+    lines.append("")
+    lines.append("- Confirm each requirement's disposition, evidence, and limitations match the intended specification.")
+    lines.append("- Resolve blocking clarification questions before treating a requirement as formalized.")
+    lines.append("- For `not_formalizable`/`out_of_scope`, record the reason and the alternative verification plan.")
+    lines.append("")
+    lines.append("### RTL / Design")
+    lines.append("")
+    lines.append("- Treat `FAIL` as a counterexample-backed mismatch: inspect trace, requirement evidence, and RTL behavior.")
+    lines.append("- Treat `BMC_PASS` as bounded only; do not claim unbounded proof.")
+    lines.append("- Treat `UNREACHABLE`/`NOT_REACHED_WITHIN_BOUND` as missing reachability evidence; check assumptions, reset, and stimulus.")
+    lines.append("")
+    lines.append("## Signoff readiness")
+    lines.append("")
+    for k, v in signoff.items():
+        if k == "blocking_reasons":
+            continue
+        lines.append(f"- **{k.replace('_', ' ').title()}:** {'yes' if v else 'no'}")
+    if signoff.get("blocking_reasons"):
+        lines.append("- **Blocking reasons:** " + "; ".join(signoff["blocking_reasons"]))
+    lines.append("")
     features = results.get("features") or []
     if features:
         lines.append("")
@@ -390,13 +532,14 @@ def _markdown(results: dict[str, Any]) -> str:
         lines.append("")
     lines.append("## Property results")
     lines.append("")
-    lines.append("| Property | Req | Kind | Role | Depth | BMC | Induction | Status | Time (s) |")
-    lines.append("|---|---|---|---|---:|---|---|---|---:|")
+    lines.append("| Property | Req | Kind | Role | Depth | BMC | Induction | Status | Why | Time (s) |")
+    lines.append("|---|---|---|---|---:|---|---|---|---|---:|")
     for p in results.get("properties") or []:
         bmc = _phase_display(p, "bmc")
         ind = _phase_display(p, "induction")
+        reason = _md_escape(p.get("status_reason") or STATUS_REASONS.get(str(p.get("status")), ""))
         lines.append(f"| `{p['id']}` | `{p.get('req')}` | {p.get('kind')} | {p.get('role')} | "
-                     f"{p.get('depth')} | {bmc} | {ind} | **{p.get('status')}** | "
+                     f"{p.get('depth')} | {bmc} | {ind} | **{p.get('status')}** | {reason} | "
                      f"{p.get('elapsed_s', '')} |")
     lines.append("")
     problems = [p for p in results.get("properties") or []
@@ -489,26 +632,24 @@ def _junit(results: dict[str, Any]) -> str:
         if status in ("FAIL",) or (status in WARN_ERROR and p.get("severity") == "error"):
             failures += 1
             fail = ET.SubElement(case, "failure", {"message": str(status)})
-            fail.text = (p.get("error") or "") + "\n" + "\n".join((p.get("counterexample") or [])[:20])
+            fail.text = (p.get("status_reason") or p.get("error") or "") + "\n" + "\n".join((p.get("counterexample") or [])[:20])
         elif status in ("ERROR", "TIMEOUT"):
             errors += 1
             err = ET.SubElement(case, "error", {"message": str(status)})
-            err.text = p.get("error") or ""
+            err.text = p.get("status_reason") or p.get("error") or ""
         elif status == "BMC_PASS":
-            # Not a failure, but make the limitation visible in CI.
             out = ET.SubElement(case, "system-out")
-            out.text = "BMC_PASS is bounded, not a proof. " + (triage(p) or "")
+            out.text = (p.get("status_reason") or "BMC_PASS is bounded, not a proof.") + " " + (triage(p) or "")
         elif status == "COVERED":
             out = ET.SubElement(case, "system-out")
-            out.text = ("Reachable within depth " + str(p.get("depth")) + ". "
-                        "Reachability is bounded, not exhaustive.")
+            out.text = p.get("status_reason") or ("Reachable within depth " + str(p.get("depth")) + ".")
         elif status == "ASSUMED":
             out = ET.SubElement(case, "system-out")
-            out.text = "Assumption is satisfiable and active within depth."
-        elif status in ("UNREACHABLE", "VACUOUS") and p.get("severity") != "error":
+            out.text = p.get("status_reason") or "Assumption is satisfiable and active within depth."
+        elif status in ("UNREACHABLE", "NOT_REACHED_WITHIN_BOUND", "VACUOUS") and p.get("severity") != "error":
             skipped += 1
             sk = ET.SubElement(case, "skipped", {"message": str(status)})
-            sk.text = triage(p)
+            sk.text = p.get("status_reason") or triage(p)
     suite.set("failures", str(failures))
     suite.set("errors", str(errors))
     suite.set("skipped", str(skipped))
@@ -598,9 +739,22 @@ def run_all(manifest: dict[str, Any], contract_path: Path | None = None,
                         "elapsed_s": 0,
                     }
 
+    run_fingerprint = hashlib.sha256(
+        json.dumps({
+            "generated_at": _now(),
+            "contract": (harness.get("contract") or {}).get("sha256"),
+            "bundle": (harness.get("bundle") or {}).get("sha256"),
+            "backend": backend_info,
+            "properties": [p.get("id") for p in props],
+        }, sort_keys=True).encode("utf-8")
+    ).hexdigest()[:16]
+
     ordered: list[dict[str, Any]] = []
     for prop in props:
         run = results_by_id[str(prop["id"])]
+        prop_hash = hashlib.sha256(
+            json.dumps({k: prop.get(k) for k in sorted(prop.keys())}, sort_keys=True, default=str).encode("utf-8")
+        ).hexdigest()
         merged = {
             **run,
             "req": prop.get("req"),
@@ -609,8 +763,28 @@ def run_all(manifest: dict[str, Any], contract_path: Path | None = None,
             "severity": prop.get("severity") or "error",
             "evidence": prop.get("evidence"),
             "tags": prop.get("tags") or [],
-            "triage": triage({**run, **prop}),
+            "run_id": run_fingerprint,
+            "config": {
+                "design": (contract.get("design") or {}).get("name"),
+                "top": (contract.get("design") or {}).get("top"),
+                "parameters": (contract.get("design") or {}).get("parameters"),
+                "backend": backend_info.get("name"),
+                "depth": run.get("depth"),
+            },
+            "artifact_hashes": {
+                "contract_sha256": (harness.get("contract") or {}).get("sha256"),
+                "bundle_sha256": (harness.get("bundle") or {}).get("sha256"),
+                "harness_sha256": sha256_file(Path(harness["_path"])) if harness.get("_path") else "",
+                "property_sha256": prop_hash,
+            },
         }
+        # Reject conflicting/incomplete backend markers: a pass with counterexample
+        # trace or fail without diagnostic info is suspect but keep diagnostic; flag.
+        if merged.get("status") in ("ERROR", "TIMEOUT", "FAIL") and not (merged.get("error") or merged.get("bmc")):
+            merged["status"] = "ERROR"
+            merged["error"] = "incomplete backend result: missing diagnostic artifacts"
+        merged["status_reason"] = status_reason(merged)
+        merged["triage"] = triage(merged)
         ordered.append(merged)
     requirements = _requirements(contract, bundle, ordered)
     features = _features(bundle, requirements)
@@ -628,6 +802,7 @@ def run_all(manifest: dict[str, Any], contract_path: Path | None = None,
     summary = _summary(ordered, requirements)
     results = {
         "schema_version": RUN_SCHEMA_VERSION,
+        "run_id": run_fingerprint,
         "generated_at": _now(),
         "design": {
             "name": (contract.get("design") or {}).get("name"),
@@ -658,6 +833,7 @@ def run_all(manifest: dict[str, Any], contract_path: Path | None = None,
             "junit": rel_to(root, Path(manifest["_paths"]["reports"]) / "junit.xml"),
         },
     }
+    results["signoff"] = _signoff(results)
 
     # The review is part of every completed run: verification results alone do not
     # show whether the properties and constraints themselves are trustworthy.
@@ -673,6 +849,22 @@ def run_all(manifest: dict[str, Any], contract_path: Path | None = None,
         }
         results["review_findings"] = review_doc.get("findings") or []
         results["artifacts"].update(artifacts)
+
+    # Planning/signoff artifacts: derived from contract/bundle/results.
+    try:
+        from fv_plan import build as build_plan, write as write_plan
+        from fv_ledger import build as build_ledger, write as write_ledger
+        plan = build_plan(manifest, contract, bundle, results)
+        results["verification_plan"] = {"summary": {
+            "requirements": len(plan.get("requirements") or []),
+            "exclusions": len(plan.get("exclusions") or []),
+        }, "artifacts": write_plan(manifest, plan)}
+        results["artifacts"].update(results["verification_plan"]["artifacts"])
+        ledger = build_ledger(manifest, bundle)
+        results["completeness_ledger"] = {"summary": ledger.get("summary"), "artifacts": write_ledger(manifest, ledger)}
+        results["artifacts"].update(results["completeness_ledger"]["artifacts"])
+    except Exception as exc:
+        results.setdefault("warnings", []).append(f"plan/ledger generation failed: {exc}")
 
     # Persist artifacts.
     write_artifacts(manifest, results)

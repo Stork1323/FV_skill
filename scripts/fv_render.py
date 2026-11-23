@@ -78,14 +78,16 @@ def _unique(name: str, used: set[str]) -> str:
 
 def _port_decl(port: dict[str, Any], direction: str, name: str | None = None) -> str:
     dims = " ".join((port.get("dims") or []))
-    return f"{direction} logic {dims + ' ' if dims else ''}{name or port['name']}"
+    signed = " signed" if port.get("signed") else ""
+    return f"{direction} logic{signed} {dims + ' ' if dims else ''}{name or port['name']}"
 
 
 def _wire_decl(port: dict[str, Any]) -> str:
     dims = " ".join((port.get("dims") or []))
+    signed = " signed" if port.get("signed") else ""
     # Keep DUT outputs that this property does not reference: they are shown in
     # counterexamples, and Yosys would otherwise delete the unused wire.
-    return f"(* keep *) logic {dims + ' ' if dims else ''}{port['name']};"
+    return f"(* keep *) logic{signed} {dims + ' ' if dims else ''}{port['name']};"
 
 
 def _check_interface(interface: dict[str, Any]) -> None:
@@ -185,12 +187,19 @@ def _history_decl(entry: dict[str, Any]) -> str:
     return f"  logic {dims + ' ' if dims else ''}{entry['name']};"
 
 
-def _history_block(history: dict[str, dict[str, Any]], clock: str, edge: str) -> str:
+def _history_block(history: dict[str, dict[str, Any]], clock: str, edge: str,
+                   arm: str | None = None) -> str:
     if not history:
         return ""
     lines = [f"  always_ff @({edge} {clock}) begin"]
-    for entry in history.values():
-        lines.append(f"    {entry['name']} <= {entry['arg']};")
+    if arm:
+        lines.append(f"    if ({arm}) begin")
+        for entry in history.values():
+            lines.append(f"      {entry['name']} <= {entry['arg']};")
+        lines.append("    end")
+    else:
+        for entry in history.values():
+            lines.append(f"    {entry['name']} <= {entry['arg']};")
     lines.append("  end")
     return "\n".join(lines)
 
@@ -269,6 +278,43 @@ def _disable_default(prop: dict[str, Any]) -> bool:
     return bool(prop.get("disable_reset", True))
 
 
+def _uses_history(prop: dict[str, Any]) -> bool:
+    """Whether the property reads a value from a previous cycle.
+
+    ``stability`` uses a history register even though its expression has no
+    history function.  A trigger, guard, expression or response that calls
+    ``prev``/``rose``/``fell``/``stable`` also depends on history.
+    """
+    if prop.get("kind") == "stability":
+        return True
+    for key in ("when", "trigger", "expr", "response"):
+        expr = str(prop.get(key) or "")
+        if expr and find_calls(expr):
+            return True
+    return False
+
+
+def _sva_history_guard(prop: dict[str, Any], design: dict[str, Any]) -> str:
+    """Skip the first evaluation cycle (and the first cycle after reset).
+
+    The monitor has an explicit ``fv_hist_valid`` register; standard SVA has no
+    harness signal, so the equivalent condition is expressed with ``$past``.
+    """
+    if not _uses_history(prop):
+        return ""
+    parts = ["$past(1'b1)"]
+    if _disable_default(prop):
+        parts.append(f"$past(!({_reset_active_expr(design)}))")
+    return " && ".join(parts)
+
+
+def _history_valid_lines(arm: str, clock: str, edge: str) -> str:
+    return (
+        "  logic fv_hist_valid;\n"
+        f"  always_ff @({edge} {clock}) fv_hist_valid <= ({arm});"
+    )
+
+
 # -- monitor modules -----------------------------------------------------------------------------
 
 def _monitor_header(name: str, interface: dict[str, Any], cover: bool) -> str:
@@ -312,6 +358,8 @@ def _assert_monitor(prop: dict[str, Any], design: dict[str, Any], interface: dic
     clock, edge = _design_clock(design)
     params = design.get("parameters") or {}
     history = _history_for_prop(prop, interface)
+    uses_history = _uses_history(prop)
+    arm = "fv_armed" if _disable_default(prop) else "fv_start"
     lines = [
         f"// {pid}: {prop.get('title', '')}",
         f"// kind={kind} req={prop.get('req', '')}",
@@ -320,14 +368,17 @@ def _assert_monitor(prop: dict[str, Any], design: dict[str, Any], interface: dic
     ]
     for entry in history.values():
         lines.append(_history_decl(entry))
-    hist_block = _history_block(history, clock, edge)
+    if uses_history:
+        lines.append(_history_valid_lines(arm, clock, edge))
+    hist_block = _history_block(history, clock, edge, arm if uses_history else None)
     if hist_block:
         lines.append(hist_block)
 
     if kind == "always":
         when = str(prop.get("when") or "").strip()
-        arm = "fv_armed" if _disable_default(prop) else "fv_start"
-        cond = arm + (f" && ({map_expr(when, history, 'monitor', params)})" if when else "")
+        cond = arm + (" && fv_hist_valid" if uses_history else "")
+        if when:
+            cond += f" && ({map_expr(when, history, 'monitor', params)})"
         expr = map_expr(str(prop["expr"]), history, "monitor", params)
         lines.append("  always @* begin")
         lines.append(f"    if ({cond}) assert({expr});")
@@ -342,44 +393,43 @@ def _assert_monitor(prop: dict[str, Any], design: dict[str, Any], interface: dic
         lines.append("  end")
 
     elif kind == "next":
-        arm = "fv_armed" if _disable_default(prop) else "fv_start"
         trigger = _trigger_full(prop, history, "monitor", params)
         expr = map_expr(str(prop["expr"]), history, "monitor", params)
+        hist_gate = " && fv_hist_valid" if uses_history else ""
         lines.append("  logic fv_trig_d1;")
         lines.append(f"  always_ff @({edge} {clock}) begin")
-        lines.append(f"    fv_trig_d1 <= ({arm}) && ({trigger});")
+        lines.append(f"    fv_trig_d1 <= ({arm}){hist_gate} && ({trigger});")
         lines.append("  end")
         lines.append("  always @* begin")
-        lines.append(f"    if ({arm} && fv_trig_d1) assert({expr});")
+        lines.append(f"    if ({arm}{hist_gate} && fv_trig_d1) assert({expr});")
         lines.append("  end")
 
     elif kind == "response":
-        arm = "fv_armed" if _disable_default(prop) else "fv_start"
         trigger = _trigger_full(prop, history, "monitor", params)
         response = map_expr(str(prop["response"]), history, "monitor", params)
         min_delay = int(prop.get("min_delay") or 1)
         max_delay = int(prop.get("max_delay") or 1)
+        hist_gate = " && fv_hist_valid" if uses_history else ""
         for d in range(1, max_delay + 1):
             lines.append(f"  logic fv_trig_d{d};")
         resp_delays = max_delay - min_delay
         for d in range(1, resp_delays + 1):
             lines.append(f"  logic fv_resp_d{d};")
         lines.append(f"  always_ff @({edge} {clock}) begin")
-        lines.append(f"    fv_trig_d1 <= ({arm}) && ({trigger});")
+        lines.append(f"    fv_trig_d1 <= ({arm}){hist_gate} && ({trigger});")
         for d in range(2, max_delay + 1):
-            lines.append(f"    fv_trig_d{d} <= fv_trig_d{d - 1};")
+            lines.append(f"    fv_trig_d{d} <= fv_trig_d{d - 1} && ({arm});")
         for d in range(1, resp_delays + 1):
             src = response if d == 1 else f"fv_resp_d{d - 1}"
-            lines.append(f"    fv_resp_d{d} <= {src};")
+            lines.append(f"    fv_resp_d{d} <= ({src}) && ({arm});")
         lines.append("  end")
         response_or = [response] + [f"fv_resp_d{d}" for d in range(1, resp_delays + 1)]
         lines.append("  always @* begin")
-        lines.append(f"    if ({arm} && fv_trig_d{max_delay})")
+        lines.append(f"    if ({arm}{hist_gate} && fv_trig_d{max_delay})")
         lines.append("      assert(" + " || ".join(f"({x})" for x in response_or) + ");")
         lines.append("  end")
 
     elif kind == "stability":
-        arm = "fv_armed" if _disable_default(prop) else "fv_start"
         trigger = _trigger_full(prop, history, "monitor", params)
         signal = str(prop["signal"]).strip()
         cycles = int(prop.get("cycles") or 1)
@@ -387,13 +437,14 @@ def _assert_monitor(prop: dict[str, Any], design: dict[str, Any], interface: dic
         for d in range(1, cycles + 1):
             lines.append(f"  logic fv_trig_d{d};")
         lines.append(f"  always_ff @({edge} {clock}) begin")
-        lines.append(f"    fv_trig_d1 <= ({arm}) && ({trigger});")
+        lines.append(f"    fv_trig_d1 <= ({arm}) && fv_hist_valid && ({trigger});")
         for d in range(2, cycles + 1):
-            lines.append(f"    fv_trig_d{d} <= fv_trig_d{d - 1};")
+            lines.append(f"    fv_trig_d{d} <= fv_trig_d{d - 1} && ({arm});")
         lines.append("  end")
         lines.append("  always @* begin")
         for d in range(1, cycles + 1):
-            lines.append(f"    if ({arm} && fv_trig_d{d}) assert(({signal}) == {hist});")
+            lines.append(f"    if ({arm} && fv_hist_valid && fv_trig_d{d}) "
+                         f"assert(({signal}) == {hist});")
         lines.append("  end")
 
     else:
@@ -411,6 +462,11 @@ def _cover_monitor(prop: dict[str, Any], design: dict[str, Any], interface: dict
     clock, edge = _design_clock(design)
     params = design.get("parameters") or {}
     history = _collect_history([str(prop.get(k) or "") for k in ("when", "expr")], interface)
+    uses_history = _uses_history(prop)
+    if mode == "assume":
+        arm = "fv_start" + (f" && !({_reset_active_expr(design)})" if _disable_default(prop) else "")
+    else:
+        arm = "fv_armed" if _disable_default(prop) else "fv_start"
     lines = [
         f"// {pid}: {prop.get('title', '')}",
         f"// role={prop.get('role', '')} kind={prop.get('kind', '')} req={prop.get('req', '')}",
@@ -419,16 +475,16 @@ def _cover_monitor(prop: dict[str, Any], design: dict[str, Any], interface: dict
     ]
     for entry in history.values():
         lines.append(_history_decl(entry))
-    hist_block = _history_block(history, clock, edge)
+    if uses_history:
+        lines.append(_history_valid_lines(arm, clock, edge))
+    hist_block = _history_block(history, clock, edge, arm if uses_history else None)
     if hist_block:
         lines.append(hist_block)
     when = str(prop.get("when") or "").strip()
     expr = map_expr(str(prop["expr"]), history, "monitor", params)
-    if mode == "assume":
-        arm = "fv_start" + (f" && !({_reset_active_expr(design)})" if _disable_default(prop) else "")
-    else:
-        arm = "fv_armed" if _disable_default(prop) else "fv_start"
     cond = [f"({arm})"]
+    if uses_history:
+        cond.append("(fv_hist_valid)")
     if when:
         cond.append(f"({map_expr(when, history, 'monitor', params)})")
     cond.append(f"({expr})")
@@ -441,10 +497,12 @@ def _cover_monitor(prop: dict[str, Any], design: dict[str, Any], interface: dict
 def _assumption_monitor(assumptions: list[dict[str, Any]], design: dict[str, Any],
                         interface: dict[str, Any]) -> str:
     clock, edge = _design_clock(design)
+    params = design.get("parameters") or {}
     exprs: list[str] = []
     for p in assumptions:
         exprs.extend([str(p.get("when") or ""), str(p.get("expr") or "")])
     history = _collect_history(exprs, interface)
+    uses_history = any(_uses_history(p) for p in assumptions)
     lines = [
         "// Environment assumptions of the formal contract.",
         _monitor_header("fv_assume_all", interface, False),
@@ -452,7 +510,9 @@ def _assumption_monitor(assumptions: list[dict[str, Any]], design: dict[str, Any
     ]
     for entry in history.values():
         lines.append(_history_decl(entry))
-    hist_block = _history_block(history, clock, edge)
+    if uses_history:
+        lines.append(_history_valid_lines("fv_start", clock, edge))
+    hist_block = _history_block(history, clock, edge, "fv_start" if uses_history else None)
     if hist_block:
         lines.append(hist_block)
     lines.append("  always @* begin")
@@ -463,9 +523,11 @@ def _assumption_monitor(assumptions: list[dict[str, Any]], design: dict[str, Any
             arm += f" && !({_reset_active_expr(design)})"
         when = str(p.get("when") or "").strip()
         cond = f"({arm})"
+        if _uses_history(p):
+            cond += " && fv_hist_valid"
         if when:
             cond += f" && ({map_expr(when, history, 'monitor', params)})"
-        expr = map_expr(str(p["expr"]), history)
+        expr = map_expr(str(p["expr"]), history, "monitor", params)
         lines.append(f"    // {pid}")
         lines.append(f"    if ({cond}) assume({expr});")
     lines.append("  end")
@@ -528,11 +590,18 @@ def _sva_property(prop: dict[str, Any], design: dict[str, Any]) -> str:
     when = str(prop.get("when") or "").strip()
     reset = _reset_active_expr(design)
     disable = _disable_default(prop)
+    hist_guard = _sva_history_guard(prop, design)
+
+    def antecedent(expr: str) -> str:
+        if hist_guard:
+            return f"({hist_guard}) && ({expr})"
+        return f"({expr})"
 
     if kind == "cover":
         body = map_expr(str(prop["expr"]), {}, "sva", params)
         if when:
             body = f"({map_expr(when, {}, 'sva', params)}) && ({body})"
+        body = antecedent(body)
         if disable:
             return f"cover property (@({_design_clock(design)[1]} {_design_clock(design)[0]}) disable iff ({reset}) ({body}));"
         return f"cover property (@({_design_clock(design)[1]} {_design_clock(design)[0]}) ({body}));"
@@ -551,23 +620,28 @@ def _sva_property(prop: dict[str, Any], design: dict[str, Any]) -> str:
     if kind == "always":
         body = map_expr(str(prop["expr"]), {}, "sva", params)
         if when:
-            body = f"({map_expr(when, {}, 'sva', params)}) |-> ({body})"
+            body = f"{antecedent(map_expr(when, {}, 'sva', params))} |-> ({body})"
+        elif hist_guard:
+            body = f"({hist_guard}) |-> ({body})"
         else:
             body = f"({body})"
     elif kind == "next":
-        body = f"({_trigger_full(prop, {}, 'sva', params)}) |-> ({map_expr(str(prop['expr']), {}, 'sva', params)})"
+        trigger = antecedent(_trigger_full(prop, {}, "sva", params))
+        body = f"{trigger} |=> ({map_expr(str(prop['expr']), {}, 'sva', params)})"
     elif kind == "response":
         mn = int(prop.get("min_delay") or 1)
         mx = int(prop.get("max_delay") or 1)
+        trigger = antecedent(_trigger_full(prop, {}, "sva", params))
         body = (
-            f"({_trigger_full(prop, {}, 'sva', params)}) |-> ##[{mn}:{mx}] "
+            f"{trigger} |-> ##[{mn}:{mx}] "
             f"({map_expr(str(prop['response']), {}, 'sva', params)})"
         )
     elif kind == "stability":
         cyc = int(prop.get("cycles") or 1)
         signal = str(prop["signal"]).strip()
         rep = f"$stable({signal})" + (f"[*{cyc}]" if cyc > 1 else "")
-        body = f"({_trigger_full(prop, {}, 'sva', params)}) |=> ({rep})"
+        trigger = antecedent(_trigger_full(prop, {}, "sva", params))
+        body = f"{trigger} |=> ({rep})"
     else:
         raise FvError(f"property {prop.get('id')}: unsupported kind {kind!r}")
 

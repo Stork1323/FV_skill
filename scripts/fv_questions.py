@@ -95,6 +95,7 @@ def collect(manifest: dict[str, Any], bundle: dict[str, Any] | None = None,
             "answered_at": answer.get("answered_at") if isinstance(answer, dict) else None,
         })
 
+    spec_sha = ((bundle.get("sources") or {}).get("spec_markdown") or {}).get("sha256") or ""
     for req in bundle.get("requirements") or []:
         rid = str(req.get("id"))
         clarity = str(req.get("clarity") or "clear")
@@ -114,6 +115,13 @@ def collect(manifest: dict[str, Any], bundle: dict[str, Any] | None = None,
             str(req.get("owner") or "spec_agent"), blocking,
             str(evidence or req.get("text") or ""),
             str(req.get("suggested_answer") or ""))
+    # Invalidate answers tied to an old spec revision.
+    for q in questions:
+        ans = answers.get(q["id"]) or {}
+        if isinstance(ans, dict) and ans.get("spec_sha256") and spec_sha and ans.get("spec_sha256") != spec_sha:
+            q["status"] = "open"
+            q["answer_stale"] = True
+            q["why"] = q.get("why", "") + "; answer is tied to an old spec revision"
 
     for rid, req in contract_reqs.items():
         disp = str(req.get("disposition") or "")
@@ -153,6 +161,7 @@ def collect(manifest: dict[str, Any], bundle: dict[str, Any] | None = None,
                                     if paths["requirements"].is_file() else ""),
             "contract_sha256": (sha256_file(paths["contract"])
                                 if paths["contract"].is_file() else ""),
+            "spec_sha256": ((bundle.get("sources") or {}).get("spec_markdown") or {}).get("sha256") or "",
         },
     }
     return doc
@@ -219,11 +228,14 @@ def markdown(doc: dict[str, Any]) -> str:
                 "status": "answered",
                 "answer": "The counter is free-running; no pause input exists.",
                 "owner": "spec_agent",
+                "spec_sha256": "<sha256 from questions.json inputs.spec_sha256>",
                 "answered_at": "2026-01-01T00:00:00+00:00",
             }
         },
     }, indent=2))
     lines.append("```")
+    lines.append("")
+    lines.append("Answers tied to an old `spec_sha256` are treated as stale when the spec changes.")
     lines.append("")
     return "\n".join(lines)
 

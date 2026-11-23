@@ -45,6 +45,26 @@ def _now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
 
+_SEMANTIC_KEYS = (
+    "role", "kind", "severity", "expr", "trigger", "response", "signal",
+    "when", "min_delay", "max_delay", "cycles", "disable_reset",
+    "obligation", "owner", "depth", "reset_cycles",
+)
+
+
+def _semantic_signature(x: dict[str, Any]) -> dict[str, Any]:
+    sig: dict[str, Any] = {}
+    for key in _SEMANTIC_KEYS:
+        if x.get(key) is not None:
+            sig[key] = x.get(key)
+    # Configuration and assumption set are part of verification meaning.
+    for key in ("assumptions", "configuration", "configurations", "bound_source",
+                "proof_method"):
+        if x.get(key) is not None:
+            sig[key] = x.get(key)
+    return sig
+
+
 def _status_table(items: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
     out: dict[str, dict[str, Any]] = {}
     for x in items:
@@ -52,9 +72,10 @@ def _status_table(items: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
             "status": x.get("status"),
             "req": x.get("req"),
         }
-        for key in ("severity", "kind", "role"):
+        for key in ("severity", "kind", "role", "obligation", "owner"):
             if x.get(key) is not None:
                 entry[key] = x[key]
+        entry["semantic"] = _semantic_signature(x)
         out[str(x.get("id"))] = entry
     return out
 
@@ -88,16 +109,52 @@ def results_path_for(manifest: dict[str, Any], explicit: str | Path | None = Non
     return Path(manifest["_paths"]["results"])
 
 
-def _change(base: str | None, current: str | None) -> str:
+def _change(base: dict[str, Any] | str | None,
+            current: dict[str, Any] | str | None) -> str:
+    # Backward compatibility: accept raw status strings.
+    if isinstance(base, str) or base is None and isinstance(current, str):
+        base_d = {"status": base} if isinstance(base, str) else None
+        cur_d = {"status": current} if isinstance(current, str) else None
+        return _change(base_d, cur_d)
+    if isinstance(current, str):
+        current = {"status": current}
     if base is None:
         return "NEW"
     if current is None:
         return "REMOVED"
-    rb, rc = status_rank(base), status_rank(current)
+    bstatus = base.get("status")
+    cstatus = current.get("status")
+    bsem = base.get("semantic")
+    csem = current.get("semantic")
+    # Legacy baselines have no semantic field; only compare explicit fields.
+    legacy = "semantic" not in base
+    if not isinstance(bsem, dict):
+        bsem = {}
+    if not isinstance(csem, dict):
+        csem = {}
+    semantic_changed = (bsem != csem) if not legacy else False
+    # A property that changed role/kind/obligation is not "unchanged" even if the
+    # raw status name looks equally good.  PROVEN(assert) -> COVERED(cover) is a
+    # regression because the obligation is weaker.  Skip comparison when the
+    # baseline predates the field (legacy baseline compatibility).
+    brole = str(bsem.get("role") or base.get("role") or "")
+    crole = str(csem.get("role") or current.get("role") or "")
+    bobl = str(bsem.get("obligation") or base.get("obligation") or "")
+    cobl = str(csem.get("obligation") or current.get("obligation") or "")
+    if brole and crole and brole != crole:
+        if status_rank(cstatus) <= status_rank(bstatus):
+            return "REGRESSION"
+    if bobl and cobl and bobl != cobl:
+        if status_rank(cstatus) <= status_rank(bstatus):
+            return "REGRESSION"
+    rb, rc = status_rank(bstatus), status_rank(cstatus)
     if rc > rb:
         return "REGRESSION"
     if rc < rb:
-        return "IMPROVEMENT"
+        # Stronger status but different meaning: flag as changed, not silent improvement.
+        return "CHANGED" if semantic_changed else "IMPROVEMENT"
+    if semantic_changed:
+        return "CHANGED"
     return "UNCHANGED"
 
 
@@ -108,6 +165,8 @@ def _is_blocking(change: str, current: str | None, severity: str) -> bool:
     if current in BAD_STATUSES:
         return True
     if current in WARN_STATUSES and severity == "error":
+        return True
+    if change == "CHANGED" and severity == "error":
         return True
     return change == "REGRESSION" and severity == "error"
 
@@ -124,7 +183,9 @@ def _compare_table(label: str, current_items: list[dict[str, Any]],
         c = current.get(key) or {}
         bstatus = b.get("status")
         cstatus = c.get("status")
-        change = _change(bstatus, cstatus)
+        c_entry = dict(c)
+        c_entry["semantic"] = c.get("semantic") or _semantic_signature(c)
+        change = _change(b, c_entry)
         severity = (c.get("severity") or b.get("severity") or severity_default)
         row = {
             "id": key,
@@ -137,6 +198,8 @@ def _compare_table(label: str, current_items: list[dict[str, Any]],
             "severity": severity,
             "blocking": _is_blocking(change, cstatus, severity),
         }
+        if b.get("semantic") != c_entry.get("semantic"):
+            row["semantic_changed"] = True
         for extra in ("kind", "role"):
             if c.get(extra) or b.get(extra):
                 row[extra] = c.get(extra) or b.get(extra)
@@ -154,6 +217,7 @@ def _counts(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "regressions": 0,
         "blocking_regressions": 0,
         "improvements": 0,
+        "changed": 0,
         "new": 0,
         "removed": 0,
     }
@@ -162,6 +226,7 @@ def _counts(rows: list[dict[str, Any]]) -> dict[str, Any]:
             "UNCHANGED": "unchanged",
             "REGRESSION": "regressions",
             "IMPROVEMENT": "improvements",
+            "CHANGED": "changed",
             "NEW": "new",
             "REMOVED": "removed",
         }[row["change"]]

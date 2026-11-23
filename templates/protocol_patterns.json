@@ -1,0 +1,71 @@
+{
+  "schema_version": "1.0",
+  "description": "Reviewed protocol/auxiliary pattern library for formal-sva. Patterns are templates, not proofs: every instantiated property must cite spec evidence and be reviewed.",
+  "patterns": [
+    {
+      "id": "ready_valid_persistence",
+      "category": "handshake",
+      "ownership": {"assume": "upstream/environment", "assert": "DUT"},
+      "description": "When valid is asserted and ready is low, valid and payload must remain stable until handshake.",
+      "assumptions": ["Environment does not drop valid before ready when protocol requires persistence."],
+      "assertions": ["valid && !ready |=> valid && $stable(payload)"],
+      "limitations": ["Requires cycle-accurate ready/valid protocol definition in spec."]
+    },
+    {
+      "id": "payload_stability",
+      "category": "handshake",
+      "ownership": {"assert": "DUT or environment per interface"},
+      "description": "Payload stable while transfer is pending.",
+      "assertions": ["valid && !ready |=> $stable(payload)"]
+    },
+    {
+      "id": "fifo_no_overflow",
+      "category": "fifo",
+      "ownership": {"assume": "environment may not push when full unless spec allows", "assert": "DUT"},
+      "description": "No push when full; or flag behavior as specified.",
+      "assertions": ["full |-> !push_accepted"]
+    },
+    {
+      "id": "fifo_no_underflow",
+      "category": "fifo",
+      "ownership": {"assert": "DUT"},
+      "description": "No pop when empty; or read data invalid as specified.",
+      "assertions": ["empty |-> !pop_accepted"]
+    },
+    {
+      "id": "fifo_ordering",
+      "category": "fifo",
+      "ownership": {"assert": "DUT"},
+      "description": "FIFO ordering/data integrity; usually needs auxiliary scoreboard/reference model.",
+      "limitations": ["unsupported_by_skill unless auxiliary scoreboard/reference model is added and reviewed."]
+    },
+    {
+      "id": "arbiter_onehot_grant",
+      "category": "arbitration",
+      "ownership": {"assert": "DUT"},
+      "description": "At most one grant active.",
+      "assertions": ["onehot0(grant)"]
+    },
+    {
+      "id": "arbiter_grant_implies_request",
+      "category": "arbitration",
+      "ownership": {"assert": "DUT"},
+      "description": "Grant only when request is present unless spec allows parked grant.",
+      "assertions": ["grant[i] |-> req[i]"]
+    },
+    {
+      "id": "register_readback",
+      "category": "register",
+      "ownership": {"assert": "DUT"},
+      "description": "Software-visible register readback matches written value subject to field access policy.",
+      "limitations": ["Field side effects, W1C/W1S, and reserved bits require per-field review."]
+    },
+    {
+      "id": "transaction_no_loss_dup",
+      "category": "transaction",
+      "ownership": {"assert": "DUT"},
+      "description": "Every accepted transaction produces exactly one completion unless spec states otherwise.",
+      "limitations": ["unsupported_by_skill unless symbolic transaction/scoreboard auxiliary state is modeled."]
+    }
+  ]
+}

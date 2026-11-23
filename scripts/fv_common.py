@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 SKILL_ROOT = Path(__file__).resolve().parents[1]
-SKILL_VERSION = "1.1.0"
+SKILL_VERSION = "2.0.0"
 
 DEFAULT_PATHS = {
     "bundle": "formal/schemas/input_bundle.json",
@@ -428,13 +428,21 @@ def source_files(manifest: dict[str, Any]) -> dict[str, Any]:
 # -- statuses / regression -----------------------------------------------------------------------
 
 STATUS_ORDER = {
+    # Strongest evidence first.  A role-aware comparison in fv_regress uses the
+    # obligation kind as well as this rank: an assertion changed into a cover is
+    # never "unchanged", even when both statuses rank as a success.
     "PROVEN": 0,
-    "BMC_PASS": 1,
+    "PARTIALLY_PROVEN": 1,
+    "BMC_PASS": 2,
+    "INCONCLUSIVE": 2,
     "COVERED": 0,
+    "PROVEN_UNREACHABLE": 0,
+    "NOT_REACHED_WITHIN_BOUND": 1,
     "UNREACHABLE": 1,
     "VACUOUS": 1,
     "ASSUMED": 0,
     "ASSUMED_UNCHECKED": 1,
+    "INCOMPLETE_OBLIGATION": 2,
     "NEW": 0,
     "NOT_FORMALIZABLE": 2,
     "OUT_OF_SCOPE": 3,
@@ -450,8 +458,32 @@ STATUS_ORDER = {
     "SKIPPED": 2,
 }
 
-BAD_STATUSES = {"FAIL", "ERROR", "TIMEOUT", "MISSING"}
+BAD_STATUSES = {"FAIL", "ERROR", "TIMEOUT", "MISSING", "INCOMPLETE_OBLIGATION"}
+
+# Statuses that mean "this obligation is discharged with unbounded evidence".
+PROOF_STATUSES = {"PROVEN", "PROVEN_UNREACHABLE"}
+# Statuses that are useful evidence but only within the configured bound.
+BOUNDED_STATUSES = {"BMC_PASS", "COVERED", "NOT_REACHED_WITHIN_BOUND",
+                    "UNREACHABLE", "ASSUMED", "INCONCLUSIVE"}
+# A cover that was not reached inside the bound is not the same as a proof that
+# it is unreachable.  Keep both names so reports cannot collapse them.
+NOT_REACHED = {"NOT_REACHED_WITHIN_BOUND", "UNREACHABLE"}
+
+CLAIM_LEVELS = {
+    "mechanically_validated": "Checked by a deterministic script (hash, schema, span, type or structural comparison).",
+    "model_interpretation": "An LLM translated specification text into a property; a human should review the meaning.",
+    "engineering_decision": "A bound, assumption, abstraction or scope choice made by an engineer, not stated by the spec.",
+    "solver_result": "Produced by the configured formal backend for the recorded artifact and configuration.",
+}
 
 
 def status_rank(status: str) -> int:
     return STATUS_ORDER.get(status, 2)
+
+
+def is_proof(status: str | None) -> bool:
+    return str(status) in PROOF_STATUSES
+
+
+def is_bounded(status: str | None) -> bool:
+    return str(status) in BOUNDED_STATUSES

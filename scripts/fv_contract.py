@@ -35,6 +35,30 @@ DISPOSITIONS = {"formalized", "partially_formalized", "assumption",
                 "not_formalizable", "out_of_scope"}
 KINDS = {"always", "next", "response", "stability", "reset_value", "cover"}
 ROLES = {"assert", "assume", "cover"}
+OBLIGATIONS = {"safety", "reachability", "bounded_response", "environment",
+               "structural", "liveness"}
+REQUIREMENT_OWNERS = {"dut", "environment", "both", "none"}
+PROPERTY_OWNERS = {"dut", "environment", "verification"}
+DELAY_SOURCES = {"spec", "interface", "project", "engineering_decision"}
+
+DESIGN_KEYS = {"name", "top", "clock", "reset", "parameters", "notes"}
+CLOCK_KEYS = {"signal", "edge"}
+RESET_KEYS = {"signal", "active", "kind", "cycles"}
+REQUIREMENT_KEYS = {"id", "feature", "disposition", "reason", "limitations",
+                    "evidence", "properties", "owner", "obligations", "notes"}
+EVIDENCE_KEYS = {"section", "quote", "source_sha256", "source_lines"}
+PROPERTY_KEYS = {
+    "id", "req", "feature", "title", "kind", "role", "when", "expr",
+    "trigger", "response", "min_delay", "max_delay", "signal", "cycles",
+    "disable_reset", "depth", "severity", "tags", "evidence", "notes",
+    "obligation", "owner", "intent", "proof", "configurations",
+    "delay_source", "induction_helpers", "limitations",
+}
+INTENT_KEYS = {"type", "owner", "sampling", "reset_policy", "antecedent",
+               "consequent", "delay", "bound_source", "bound_justification"}
+PROOF_KEYS = {"method", "helpers", "soundness", "backend", "notes"}
+SCOPE_KEYS = {"configuration", "configurations", "proven", "not_proven",
+              "reset_plan", "exclusions", "notes"}
 
 TOKEN_RE = re.compile(
     r"""
@@ -90,6 +114,95 @@ def tokenize(expr: str) -> list[tuple[str, str]]:
             continue
         out.append((kind, val))
     return out
+
+
+def _check_keys(obj: dict[str, Any], allowed: set[str], where: str,
+                result: Validation, label: str) -> None:
+    """Reject unknown keys instead of silently ignoring a typo or a new obligation."""
+    for key in obj:
+        if key not in allowed:
+            result.error("SCHEMA_KEY", where,
+                         f"unknown {label} key {key!r}; allowed keys are "
+                         + ", ".join(sorted(allowed)))
+
+
+def _norm_expr(value: Any) -> str:
+    return re.sub(r"\s+", "", str(value or "")).lower()
+
+
+def property_obligation(prop: dict[str, Any]) -> str:
+    """The verification obligation a property discharges.
+
+    The mapping is deliberately explicit.  A cover is reachability evidence, an
+    assumption is an environment obligation, and only an assertion can
+    discharge a safety or bounded-response obligation.
+    """
+    explicit = str(prop.get("obligation") or "")
+    if explicit:
+        return explicit
+    role = str(prop.get("role") or "")
+    kind = str(prop.get("kind") or "")
+    if role == "assume":
+        return "environment"
+    if role == "cover" or kind == "cover":
+        return "reachability"
+    if kind == "response":
+        return "bounded_response"
+    if kind in ("always", "next", "stability", "reset_value"):
+        return "safety"
+    return "unknown"
+
+
+def property_owner(prop: dict[str, Any]) -> str:
+    explicit = str(prop.get("owner") or "")
+    if explicit:
+        return explicit
+    return "environment" if prop.get("role") == "assume" else (
+        "verification" if prop.get("role") == "cover" else "dut")
+
+
+def _section_span(spec_text: str, section: str) -> tuple[int, int, bool]:
+    """Line span [start, end) for an evidence section.
+
+    A section is either an explicit line range (``L12`` or ``L12-L18``) or a
+    Markdown heading.  Headings extend to the next heading of the same or a
+    higher level.  A section that cannot be located returns ``(0, 0, False)``:
+    the caller must not silently fall back to the whole document.
+    """
+    text = str(section or "").strip()
+    lines = spec_text.splitlines()
+    m = re.fullmatch(r"L?(\d+)(?:\s*[-–]\s*L?(\d+))?", text, re.I)
+    if m:
+        start = max(1, int(m.group(1)))
+        end = int(m.group(2) or m.group(1))
+        if end < start:
+            start, end = end, start
+        if start > len(lines):
+            return 0, 0, False
+        return start - 1, min(end, len(lines)), True
+    if not text:
+        return 0, 0, False
+    needle = re.sub(r"\s+", " ", text).strip().lower()
+    needle_key = re.sub(r"[^a-z0-9]+", " ", needle).strip()
+    heading_re = re.compile(r"^(#{1,6})\s+(.*)$")
+    for i, line in enumerate(lines):
+        hm = heading_re.match(line.strip())
+        if not hm:
+            continue
+        title = re.sub(r"\s+", " ", hm.group(2)).strip().lower()
+        title_key = re.sub(r"[^a-z0-9]+", " ", title).strip()
+        if (needle == title or needle in title or title in needle
+                or needle_key == title_key or needle_key in title_key
+                or title_key in needle_key):
+            level = len(hm.group(1))
+            end = len(lines)
+            for j in range(i + 1, len(lines)):
+                nxt = heading_re.match(lines[j].strip())
+                if nxt and len(nxt.group(1)) <= level:
+                    end = j
+                    break
+            return i, end, True
+    return 0, 0, False
 
 
 def _balance(expr: str, result: Validation, where: str) -> None:
@@ -159,6 +272,26 @@ def expr_identifiers(expr: str) -> list[str]:
     return out
 
 
+def _dim_bounds(dim: str, env: dict[str, int]) -> tuple[int, int] | None:
+    body = str(dim).strip()
+    if not (body.startswith("[") and body.endswith("]")):
+        return None
+    body = body[1:-1]
+    if ":" not in body:
+        return None
+    msb_s, lsb_s = body.split(":", 1)
+    msb = const_eval(msb_s, env)
+    lsb = const_eval(lsb_s, env)
+    if msb is None or lsb is None:
+        return None
+    return min(msb, lsb), max(msb, lsb)
+
+
+def _dim_width(dim: str, env: dict[str, int]) -> int | None:
+    bounds = _dim_bounds(dim, env)
+    return (bounds[1] - bounds[0] + 1) if bounds else None
+
+
 def arg_type(arg: str, interface: dict[str, Any], result: Validation,
              where: str) -> dict[str, Any] | None:
     """Type of a history-function argument (full signal or constant slice)."""
@@ -176,49 +309,80 @@ def arg_type(arg: str, interface: dict[str, Any], result: Validation,
         return None
     selectors = SELECT_RE.findall(selectors_text)
     dims = list(port.get("dims") or [])
-    width = int(port.get("width") or 1)
+    env = {}
+    env.update(interface.get("parameters") or {})
+    env.update(interface.get("localparams") or {})
     d = 0
     for sel in selectors:
+        if d >= len(dims):
+            result.error("EXPR_SLICE", where, f"too many indices for {name!r}: {arg!r}")
+            return None
         if ":" in sel:
-            if d != 0 or len(selectors) != 1:
-                result.error("EXPR_SLICE", where,
-                             f"part-select is only supported on a one-dimensional signal: {arg!r}")
-                return None
+            # Part-select of the current packed dimension.  The selected slice
+            # remains packed, and later dimensions keep their own widths.
             msb_s, lsb_s = sel.split(":", 1)
-            env = {}
-            env.update(interface.get("parameters") or {})
-            env.update(interface.get("localparams") or {})
             msb, lsb = const_eval(msb_s, env), const_eval(lsb_s, env)
             if msb is None or lsb is None:
                 result.error("EXPR_SLICE", where,
-                             f"history-function slice bounds must be constant: {arg!r}")
+                             f"part-select bounds must be constant: {arg!r}")
+                return None
+            bounds = _dim_bounds(dims[d], env)
+            if bounds and not (bounds[0] <= min(msb, lsb) <= max(msb, lsb) <= bounds[1]):
+                result.error("EXPR_RANGE", where,
+                             f"part-select {sel} is outside the declared range "
+                             f"{dims[d]} of {name!r}")
                 return None
             width = abs(msb - lsb) + 1
-            dims = [f"[{width - 1}:0]"] if width > 1 else []
-            return {"name": name, "arg": arg, "dims": dims, "width": width, "key": re.sub(r"\s+", "", arg)}
-        if d >= len(dims):
-            result.error("EXPR_SLICE", where, f"too many indices for {name!r}: {arg!r}")
+            remaining = dims[d + 1:]
+            for dim in remaining:
+                part = _dim_width(dim, env)
+                if part is None:
+                    result.error("EXPR_SLICE", where,
+                                 f"cannot resolve dimension {dim} of {name!r}")
+                    return None
+                width *= part
+            return {"name": name, "arg": arg, "dims": remaining, "width": width,
+                    "signed": bool(port.get("signed")),
+                    "key": re.sub(r"\s+", "", arg)}
+        bounds = _dim_bounds(dims[d], env)
+        idx = const_eval(sel, env)
+        if bounds and idx is not None and not (bounds[0] <= idx <= bounds[1]):
+            result.error("EXPR_RANGE", where,
+                         f"index {sel} is outside the declared range {dims[d]} of {name!r}")
             return None
         d += 1
     remaining = dims[d:]
     width = 1
     for dim in remaining:
-        body = dim.strip("[]")
-        if ":" in body:
-            msb_s, lsb_s = body.split(":", 1)
-            env = {}
-            env.update(interface.get("parameters") or {})
-            env.update(interface.get("localparams") or {})
-            msb, lsb = const_eval(msb_s, env), const_eval(lsb_s, env)
-            if msb is None or lsb is None:
-                result.error("EXPR_SLICE", where, f"cannot resolve dimension {dim} of {name!r}")
-                return None
-            width *= abs(msb - lsb) + 1
-        else:
-            # An unresolved dimension: use the flat width only when there is one dimension left.
-            width = int(port.get("width") or 1)
+        part = _dim_width(dim, env)
+        if part is None:
+            # An unresolved dimension is only safe when the port has a single
+            # packed dimension and Yosys supplied its flat width.
+            if len(remaining) == 1 and d == 0:
+                width = int(port.get("width") or 1)
+                continue
+            result.error("EXPR_SLICE", where, f"cannot resolve dimension {dim} of {name!r}")
+            return None
+        width *= part
     return {"name": name, "arg": arg, "dims": remaining, "width": width,
+            "signed": bool(port.get("signed")),
             "key": re.sub(r"\s+", "", arg)}
+
+
+SELECTED_IDENT_RE = re.compile(
+    r"(?<![A-Za-z0-9_$])([A-Za-z_][A-Za-z0-9_$]*)\s*((?:\[[^\]]+\])+)(?!\s*\()")
+
+
+def _check_selectors(expr: str, interface: dict[str, Any], result: Validation,
+                     where: str) -> None:
+    """Validate index/part-select bounds and packed-dimension use outside history calls."""
+    seen: set[str] = set()
+    for m in SELECTED_IDENT_RE.finditer(expr):
+        name = m.group(1)
+        if name in FUNCS or name in seen:
+            continue
+        seen.add(name)
+        arg_type(name + m.group(2), interface, result, where)
 
 
 def validate_expr(expr: str, interface: dict[str, Any], result: Validation,
@@ -284,6 +448,7 @@ def validate_expr(expr: str, interface: dict[str, Any], result: Validation,
         elif name in ("onehot", "onehot0"):
             if not arg.strip():
                 result.error("EXPR_ARG", where, f"{name}() needs an argument")
+    _check_selectors(expr, interface, result, where)
 
 
 def validate_contract(manifest: dict[str, Any], contract: dict[str, Any],
@@ -308,10 +473,26 @@ def validate_contract(manifest: dict[str, Any], contract: dict[str, Any],
     if r.errors:
         return r
 
+    _check_keys(contract, {"schema_version", "design", "requirements", "properties",
+                           "scope", "metadata", "provenance", "auxiliary"},
+                "contract", r, "contract")
+
     design = contract.get("design") or {}
     for key in ("name", "top", "clock", "reset", "parameters"):
         if key not in design:
             r.error("SCHEMA", "design", f"missing {key!r}")
+    _check_keys(design, DESIGN_KEYS, "design", r, "design")
+    _check_keys(design.get("clock") or {}, CLOCK_KEYS, "design.clock", r, "clock")
+    _check_keys(design.get("reset") or {}, RESET_KEYS, "design.reset", r, "reset")
+    reset_kind = str((design.get("reset") or {}).get("kind") or "unknown")
+    if reset_kind == "unknown":
+        r.error("DESIGN_RESET_KIND", "design.reset.kind",
+                "reset kind must be 'async' or 'sync'; 'unknown' cannot be used to "
+                "justify a reset model or a proof")
+    reset_cycles = int((design.get("reset") or {}).get("cycles") or 0)
+    if reset_cycles and reset_cycles < 2:
+        r.error("DESIGN_RESET_CYCLES", "design.reset.cycles",
+                "reset must be active for at least two cycles before monitors arm")
 
     # -- design / configuration ----------------------------------------------------------------
     bdesign = bundle.get("design") or {}
@@ -356,6 +537,7 @@ def validate_contract(manifest: dict[str, Any], contract: dict[str, Any],
             r.error("PARAM_EXTRA", f"design.parameters.{name}",
                     f"parameter {name} is not a top-level RTL parameter")
     scope = contract.get("scope") or {}
+    _check_keys(scope, SCOPE_KEYS, "scope", r, "scope")
     conf = scope.get("configuration") or {}
     for name, value in expected_params.items():
         if name not in conf:
@@ -363,6 +545,46 @@ def validate_contract(manifest: dict[str, Any], contract: dict[str, Any],
         elif conf[name] != value:
             r.error("SCOPE_VALUE", f"scope.configuration.{name}",
                     f"scope says {conf[name]!r}, resolved value is {value!r}")
+    configurations = scope.get("configurations")
+    config_ids: set[str] = set()
+    if configurations is not None:
+        if not isinstance(configurations, list) or not configurations:
+            r.error("SCOPE_CONFIGS", "scope.configurations",
+                    "configurations must be a non-empty list when present")
+            configurations = []
+        for i, cfg in enumerate(configurations):
+            where_cfg = f"scope.configurations[{i}]"
+            if not isinstance(cfg, dict):
+                r.error("SCOPE_CONFIGS", where_cfg, "must be an object")
+                continue
+            cid = str(cfg.get("id") or "")
+            if not cid:
+                r.error("SCOPE_CONFIGS", where_cfg, "missing id")
+            elif cid in config_ids:
+                r.error("SCOPE_CONFIGS", where_cfg, f"duplicate configuration id {cid!r}")
+            config_ids.add(cid)
+            cparams = cfg.get("parameters")
+            if not isinstance(cparams, dict):
+                r.error("SCOPE_CONFIGS", where_cfg, "parameters must be an object")
+                continue
+            for name in expected_params:
+                if name not in cparams:
+                    r.error("SCOPE_CONFIGS", where_cfg,
+                            f"configuration {cid!r} is missing parameter {name}")
+            for name in cparams:
+                if name not in expected_params:
+                    r.error("SCOPE_CONFIGS", where_cfg,
+                            f"configuration {cid!r} has unknown parameter {name}")
+            if cfg.get("status") not in (None, "reviewed", "proposed"):
+                r.error("SCOPE_CONFIGS", where_cfg,
+                        "status must be 'reviewed' or 'proposed'")
+        active = {str(k): v for k, v in conf.items()}
+        if configurations and not any(
+                all(c.get("parameters", {}).get(k) == v for k, v in active.items())
+                for c in configurations if isinstance(c, dict)):
+            r.error("SCOPE_CONFIGS", "scope.configurations",
+                    "the active scope.configuration is not one of the listed "
+                    "configurations")
 
     # -- requirements --------------------------------------------------------------------------
     bundle_reqs = {str(q["id"]): q for q in bundle.get("requirements") or []}
@@ -385,9 +607,27 @@ def validate_contract(manifest: dict[str, Any], contract: dict[str, Any],
                     f"{rid} is not in the requirement extraction "
                     "(formal/spec/requirements.json)")
             continue
+        _check_keys(req, REQUIREMENT_KEYS, where, r, "requirement")
         disp = req.get("disposition")
         if disp not in DISPOSITIONS:
             r.error("REQ_DISPOSITION", where, f"invalid disposition {disp!r}")
+        owner = str(req.get("owner") or "")
+        if owner and owner not in REQUIREMENT_OWNERS:
+            r.error("REQ_OWNER", where,
+                    f"owner must be one of {sorted(REQUIREMENT_OWNERS)}, got {owner!r}")
+        elif not owner:
+            owner = ("environment" if disp == "assumption" else
+                     "none" if disp in ("not_formalizable", "out_of_scope") else "dut")
+        obligations = req.get("obligations")
+        if obligations is not None:
+            if not isinstance(obligations, list) or not obligations:
+                r.error("REQ_OBLIGATIONS", where,
+                        "obligations, when present, must be a non-empty list")
+            else:
+                for ob in obligations:
+                    if ob not in OBLIGATIONS:
+                        r.error("REQ_OBLIGATIONS", where,
+                                f"unknown obligation {ob!r}")
         clarity = str(bundle_reqs[rid].get("clarity") or "clear")
         if disp == "formalized" and clarity != "clear":
             r.error("REQ_UNCLEAR_FORMALIZED", where,
@@ -460,6 +700,33 @@ def validate_contract(manifest: dict[str, Any], contract: dict[str, Any],
             r.error("PROP_KIND", where, f"invalid kind {kind!r}")
         if role not in ROLES:
             r.error("PROP_ROLE", where, f"invalid role {role!r}")
+        _check_keys(prop, PROPERTY_KEYS, where, r, "property")
+        obligation = property_obligation(prop)
+        if obligation not in OBLIGATIONS:
+            r.error("PROP_OBLIGATION", where,
+                    f"cannot infer a verification obligation for kind {kind!r} / role {role!r}")
+        elif prop.get("obligation") and prop.get("obligation") != obligation:
+            r.error("PROP_OBLIGATION", where,
+                    f"obligation {prop.get('obligation')!r} does not match the property "
+                    f"shape ({obligation})")
+        if obligation == "liveness":
+            r.error("PROP_LIVENESS", where,
+                    "unbounded liveness is not supported by the portable subset or the "
+                    "configured backends; use a bounded response with a spec-justified "
+                    "bound, or mark the requirement partially_formalized with the "
+                    "missing liveness argument")
+        owner = str(prop.get("owner") or "")
+        inferred_owner = property_owner(prop)
+        if owner and owner not in PROPERTY_OWNERS:
+            r.error("PROP_OWNER", where,
+                    f"owner must be one of {sorted(PROPERTY_OWNERS)}, got {owner!r}")
+        elif owner and owner != inferred_owner:
+            r.error("PROP_OWNER", where,
+                    f"owner {owner!r} does not match role {role!r} ({inferred_owner})")
+        if kind == "cover" and role == "cover" and prop.get("severity") == "error":
+            r.warn("COVER_SEVERITY", where,
+                   "an error-severity cover is treated as a required reachability "
+                   "obligation; confirm the spec requires the scenario to exist")
         if len(str(prop.get("title") or "").strip()) < 8:
             r.error("PROP_TITLE", where, "title must say what is checked (>= 8 characters)")
         ev = prop.get("evidence")
@@ -541,6 +808,128 @@ def validate_contract(manifest: dict[str, Any], contract: dict[str, Any],
                           allow_history=(kind != "reset_value"))
         if prop.get("severity") not in (None, "error", "warning", "info"):
             r.error("PROP_SEVERITY", where, "severity must be error, warning or info")
+        if role == "assume":
+            for ident in expr_identifiers(str(prop.get("expr") or "")):
+                port = ports.get(ident)
+                if port and port.get("direction") != "input":
+                    r.error("ASSUME_OUTPUT", where,
+                            f"assumption expression references DUT {port.get('direction')} "
+                            f"signal {ident!r}; an environment assumption must constrain "
+                            "inputs, not assume a DUT guarantee. A DUT handshake signal may "
+                            "appear in `when` as a guard, but not in `expr`.")
+            guard_outputs = [x for x in expr_identifiers(str(prop.get("when") or ""))
+                             if (ports.get(x) or {}).get("direction") != "input"]
+            if guard_outputs:
+                r.warn("ASSUME_OUTPUT_GUARD", where,
+                       "assumption guard references DUT signal(s) "
+                       + ", ".join(sorted(set(guard_outputs)))
+                       + "; this is allowed only when the signal is a handshake "
+                       "qualifier, not when it restates the DUT obligation")
+            for other in props:
+                if other is prop or other.get("role") != "assert":
+                    continue
+                if (_norm_expr(other.get("expr")) == _norm_expr(prop.get("expr"))
+                        and _norm_expr(other.get("trigger")) == _norm_expr(prop.get("trigger"))
+                        and _norm_expr(other.get("when")) == _norm_expr(prop.get("when"))):
+                    r.error("ASSUME_ASSERT_SAME", where,
+                            f"assumption {pid} is identical to assertion {other.get('id')}; "
+                            "this converts a DUT guarantee into an environment rule")
+        if kind == "response":
+            delay_source = str(prop.get("delay_source") or "")
+            if not delay_source:
+                r.warn("PROP_DELAY_SOURCE", where,
+                       "response has no delay_source; record whether the bound comes "
+                       "from the spec, the interface, the project or an engineering "
+                       "decision so the bound is not mistaken for a spec fact")
+            elif delay_source not in DELAY_SOURCES:
+                r.error("PROP_DELAY_SOURCE", where,
+                        f"delay_source must be one of {sorted(DELAY_SOURCES)}")
+            elif delay_source == "engineering_decision":
+                justification = (str(prop.get("notes") or "") + " "
+                                 + str(prop.get("limitations") or "")).strip()
+                if len(justification) < 20:
+                    r.error("PROP_DELAY_JUSTIFICATION", where,
+                            "an engineering-decision bound needs a notes/limitations "
+                            "sentence explaining why it is the smallest justified bound")
+        intent = prop.get("intent")
+        if intent is not None:
+            if not isinstance(intent, dict):
+                r.error("PROP_INTENT", where, "intent must be an object")
+            else:
+                _check_keys(intent, INTENT_KEYS, f"{where}.intent", r, "intent")
+                if intent.get("type") and intent.get("type") != obligation:
+                    r.error("PROP_INTENT", where,
+                            f"intent.type {intent.get('type')!r} != inferred obligation "
+                            f"{obligation!r}")
+                if intent.get("owner") and intent.get("owner") != inferred_owner:
+                    r.error("PROP_INTENT", where,
+                            f"intent.owner {intent.get('owner')!r} != property owner "
+                            f"{inferred_owner!r}")
+                sampling = intent.get("sampling")
+                if isinstance(sampling, dict):
+                    edge = sampling.get("edge")
+                    clock_sig = (design.get("clock") or {}).get("signal")
+                    if edge and edge != (design.get("clock") or {}).get("edge"):
+                        r.error("PROP_INTENT", where,
+                                f"intent.sampling.edge {edge!r} != design clock edge "
+                                f"{(design.get('clock') or {}).get('edge')!r}")
+                    if sampling.get("signal") and sampling.get("signal") != clock_sig:
+                        r.error("PROP_INTENT", where,
+                                f"intent.sampling.signal {sampling.get('signal')!r} != "
+                                f"design clock {clock_sig!r}")
+                elif sampling is not None:
+                    r.error("PROP_INTENT", where, "intent.sampling must be an object")
+                reset_policy = intent.get("reset_policy")
+                if reset_policy not in (None, "disabled", "active", "none"):
+                    r.error("PROP_INTENT", where,
+                            "intent.reset_policy must be disabled, active or none")
+                elif reset_policy == "disabled" and prop.get("disable_reset") is False:
+                    r.error("PROP_INTENT", where,
+                            "intent.reset_policy is disabled but disable_reset is false")
+                elif reset_policy == "active" and prop.get("disable_reset") is not False:
+                    r.error("PROP_INTENT", where,
+                            "intent.reset_policy is active but disable_reset is not false")
+                bound_source = intent.get("bound_source")
+                if bound_source is not None and bound_source not in DELAY_SOURCES:
+                    r.error("PROP_INTENT", where,
+                            f"intent.bound_source must be one of {sorted(DELAY_SOURCES)}")
+        proof = prop.get("proof")
+        if proof is not None:
+            if not isinstance(proof, dict):
+                r.error("PROP_PROOF", where, "proof must be an object")
+            else:
+                _check_keys(proof, PROOF_KEYS, f"{where}.proof", r, "proof")
+                method = str(proof.get("method") or "")
+                if method and method not in ("bmc", "induction", "helper_invariants",
+                                             "decomposition", "abstraction",
+                                             "bounded_reset_check", "unsupported"):
+                    r.error("PROP_PROOF", where, f"unknown proof method {method!r}")
+                helpers = proof.get("helpers")
+                if helpers is not None and not isinstance(helpers, list):
+                    r.error("PROP_PROOF", where, "proof.helpers must be a list of property ids")
+                if method in ("helper_invariants", "decomposition", "abstraction"):
+                    soundness = str(proof.get("soundness") or "").strip()
+                    if len(soundness) < 20:
+                        r.error("PROP_PROOF", where,
+                                f"proof method {method!r} needs a soundness obligation "
+                                "(>= 20 characters) stating what must be proved separately")
+        cfg_refs = prop.get("configurations")
+        if cfg_refs is not None:
+            if not isinstance(cfg_refs, list) or not cfg_refs:
+                r.error("PROP_CONFIG", where, "configurations must be a non-empty list")
+            else:
+                for cid in cfg_refs:
+                    if config_ids and str(cid) not in config_ids:
+                        r.error("PROP_CONFIG", where,
+                                f"configuration {cid!r} is not in scope.configurations")
+                if config_ids and not cfg_refs:
+                    r.error("PROP_CONFIG", where,
+                            "the contract has a configuration matrix; each property must "
+                            "name the configurations it covers")
+        elif config_ids:
+            r.error("PROP_CONFIG", where,
+                    "the contract has a configuration matrix; each property must name "
+                    "the configurations it covers")
 
     # -- disposition <-> properties ------------------------------------------------------------
     req_map = {str(q.get("id")): q for q in reqs if isinstance(q, dict) and q.get("id")}
@@ -548,10 +937,30 @@ def validate_contract(manifest: dict[str, Any], contract: dict[str, Any],
         disp = req.get("disposition")
         plist = by_req.get(rid, [])
         roles = [p.get("role") for p in plist]
+        owner = str(req.get("owner") or (
+            "environment" if disp == "assumption" else
+            "none" if disp in ("not_formalizable", "out_of_scope") else "dut"))
+        breq = bundle_reqs.get(rid) or {}
+        hint = str(breq.get("sva_hint") or "")
+        category = str(breq.get("category") or "").lower()
+        text_l = str(breq.get("text") or "").lower()
+        reachability_only = (hint == "cover" or category in ("reachability", "coverage")
+                             or "reachable" in text_l or "reachability" in text_l)
         if disp in ("formalized", "partially_formalized"):
-            if not any(x in ("assert", "cover") for x in roles):
-                r.error("REQ_NO_PROP", f"requirement {rid}",
-                        f"disposition is {disp} but it has no assert/cover property")
+            has_assert = any(x == "assert" for x in roles)
+            if not has_assert and not (disp == "formalized" and reachability_only):
+                r.error("REQ_NO_ASSERT", f"requirement {rid}",
+                        f"disposition is {disp} but it has no assertion; a cover or "
+                        "assumption cannot discharge a safety, bounded-response or "
+                        "liveness obligation")
+            if disp == "formalized" and not has_assert and not reachability_only:
+                r.error("REQ_COVER_ONLY", f"requirement {rid}",
+                        "a non-reachability requirement cannot be formalized by a "
+                        "cover alone")
+            if owner == "environment" and has_assert:
+                r.error("REQ_OWNERSHIP", f"requirement {rid}",
+                        "owner is environment but the requirement has DUT assertions; "
+                        "split environment rules from DUT guarantees")
         elif disp == "assumption":
             if "assume" not in roles:
                 r.error("REQ_NO_ASSUME", f"requirement {rid}",
@@ -559,11 +968,30 @@ def validate_contract(manifest: dict[str, Any], contract: dict[str, Any],
             if "assert" in roles:
                 r.warn("REQ_ASSUME_ASSERT", f"requirement {rid}",
                        "marked assumption but also has assertions; split the requirement or use formalized")
+            if owner == "dut":
+                r.error("REQ_OWNERSHIP", f"requirement {rid}",
+                        "a requirement owned by the DUT cannot be discharged only by "
+                        "an environment assumption; this weakens the obligation")
         elif disp in ("not_formalizable", "out_of_scope"):
             if plist:
                 r.error("REQ_HAS_PROP", f"requirement {rid}",
                         f"disposition is {disp} but properties cite it: "
                         + ", ".join(str(p.get('id')) for p in plist))
+        declared = req.get("properties")
+        if declared is not None:
+            if not isinstance(declared, list):
+                r.error("REQ_PROPERTIES", f"requirement {rid}",
+                        "properties must be a list of property ids")
+            else:
+                actual = {str(p.get("id")) for p in plist}
+                for pid in declared:
+                    if str(pid) not in actual:
+                        r.error("REQ_PROPERTIES", f"requirement {rid}",
+                                f"declares property {pid!r} but no property cites {rid}")
+                for pid in actual - {str(x) for x in declared}:
+                    r.warn("REQ_PROPERTIES_UNDECLARED", f"requirement {rid}",
+                           f"property {pid!r} cites {rid} but is not in the "
+                           "requirement's properties list")
         if rid in bundle_reqs:
             hint = bundle_reqs[rid].get("sva_hint")
             if hint == "static" and disp == "formalized":
@@ -614,6 +1042,52 @@ def validate_contract(manifest: dict[str, Any], contract: dict[str, Any],
                 r.warn("ASSUME_ALWAYS", f"property {p.get('id')}",
                        "an unguarded assume constrains every cycle; confirm it is an environment rule")
 
+    # -- provenance / auxiliary state ----------------------------------------------------------
+    metadata = contract.get("metadata")
+    if metadata is not None and not isinstance(metadata, dict):
+        r.error("SCHEMA", "metadata", "metadata must be an object")
+    provenance = contract.get("provenance")
+    if provenance is not None:
+        if not isinstance(provenance, dict):
+            r.error("PROVENANCE", "provenance", "provenance must be an object")
+        else:
+            for key in ("model", "prompt_versions", "input_hashes", "validation_feedback",
+                        "repair_history", "candidates"):
+                if key in provenance and provenance[key] is None:
+                    r.error("PROVENANCE", f"provenance.{key}", "must not be null")
+            prompt_versions = provenance.get("prompt_versions")
+            if prompt_versions is not None and not isinstance(prompt_versions, dict):
+                r.error("PROVENANCE", "provenance.prompt_versions", "must be an object")
+            repair = provenance.get("repair_history")
+            if repair is not None and not isinstance(repair, list):
+                r.error("PROVENANCE", "provenance.repair_history", "must be a list")
+            if not provenance.get("model"):
+                r.warn("PROVENANCE_MODEL", "provenance",
+                       "record the generating model/agent so a result can be reproduced")
+    else:
+        r.warn("PROVENANCE_MISSING", "contract",
+               "no provenance block: record the model, prompt/template versions, input "
+               "hashes, validation feedback and repair history with the contract")
+    auxiliary = contract.get("auxiliary")
+    if auxiliary is not None:
+        if not isinstance(auxiliary, dict):
+            r.error("AUXILIARY", "auxiliary", "auxiliary must be an object")
+        else:
+            for key in ("scoreboards", "reference_models", "symbolic_transactions",
+                        "bindings", "limitations"):
+                if key in auxiliary and not isinstance(auxiliary[key], list):
+                    r.error("AUXILIARY", f"auxiliary.{key}", "must be a list")
+            for item in auxiliary.get("limitations") or []:
+                if not isinstance(item, dict) or not item.get("label") or not item.get("reason"):
+                    r.error("AUXILIARY", "auxiliary.limitations",
+                            "each limitation needs a label and a reason")
+                elif item.get("label") not in ("unsupported_by_skill",
+                                               "unsupported_by_backend",
+                                               "not_implemented",
+                                               "reviewed_abstraction"):
+                    r.error("AUXILIARY", "auxiliary.limitations",
+                            f"unknown limitation label {item.get('label')!r}")
+
     # -- stats ---------------------------------------------------------------------------------
     dispositions: dict[str, int] = {k: 0 for k in DISPOSITIONS}
     for req in req_map.values():
@@ -626,6 +1100,14 @@ def validate_contract(manifest: dict[str, Any], contract: dict[str, Any],
         "assertions": sum(1 for p in props if p.get("role") == "assert"),
         "assumptions": sum(1 for p in props if p.get("role") == "assume"),
         "covers": sum(1 for p in props if p.get("role") == "cover"),
+        "obligations": {
+            key: sum(1 for p in props if property_obligation(p) == key)
+            for key in sorted(OBLIGATIONS)
+        },
+        "owners": {
+            key: sum(1 for p in props if property_owner(p) == key)
+            for key in sorted(PROPERTY_OWNERS)
+        },
         "dispositions": dispositions,
         "clarity": {
             "clear": sum(1 for q in bundle_reqs.values()
@@ -634,6 +1116,7 @@ def validate_contract(manifest: dict[str, Any], contract: dict[str, Any],
                            if str(q.get("clarity") or "clear") != "clear"),
         },
         "parameters": expected_params,
+        "configurations": len(config_ids) or 1,
         "reset_cycles": reset_cycles,
         "depth": default_depth,
     }
@@ -649,6 +1132,13 @@ def validate_contract(manifest: dict[str, Any], contract: dict[str, Any],
 
 def _check_evidence(ev: dict[str, Any], where: str, root: Path, bundle: dict[str, Any],
                     result: Validation, extra_text: str = "") -> None:
+    """Check evidence against the declared source span, not the whole document.
+
+    ``extra_text`` is retained for call-site compatibility but deliberately not
+    searched: a quote that only occurs in the requirement statement (which the
+    model wrote) is not evidence from the specification.
+    """
+    _check_keys(ev, EVIDENCE_KEYS, f"{where}.evidence", result, "evidence")
     section = str(ev.get("section") or "").strip()
     quote = str(ev.get("quote") or "").strip()
     if not section:
@@ -664,18 +1154,28 @@ def _check_evidence(ev: dict[str, Any], where: str, root: Path, bundle: dict[str
             spec_text = resolve_path(root, spec_path).read_text()
         except OSError:
             result.error("SPEC_MISSING", where, f"cannot read spec Markdown {spec_path}")
-    req_id = str(where).split()[-1] if where.startswith("requirement") else None
-    req_text = extra_text
-    if req_id:
-        for q in bundle.get("requirements") or []:
-            if str(q.get("id")) == req_id:
-                req_text = str(q.get("text") or "")
-                break
-    haystack = normalize_text(spec_text + "\n" + req_text)
-    needle = normalize_text(quote)
-    if needle not in haystack:
-        result.error("EVIDENCE_NOT_FOUND", where,
-                     f"evidence quote is not verbatim in the spec or requirement: {quote[:160]!r}")
+            return
+    else:
+        result.error("SPEC_MISSING", where, "bundle has no spec Markdown path")
+        return
+    recorded_sha = str(ev.get("source_sha256") or "")
+    current_sha = str((bundle.get("sources") or {}).get("spec_markdown", {}).get("sha256")
+                      or sha256_file(resolve_path(root, spec_path)))
+    if recorded_sha and recorded_sha != current_sha:
+        result.error("EVIDENCE_REVISION", where,
+                     "evidence.source_sha256 does not match the current spec revision; "
+                     "re-read the changed section and re-approve the quote")
+    start, end, found = _section_span(spec_text, section)
+    if not found:
+        result.error("EVIDENCE_SECTION", where,
+                     f"evidence.section {section!r} is neither a line range nor a "
+                     "heading in the specification")
+        return
+    selected = "\n".join(spec_text.splitlines()[start:end])
+    if normalize_text(quote) not in normalize_text(selected):
+        result.error("EVIDENCE_OUTSIDE_SOURCE", where,
+                     f"evidence quote is not verbatim inside the declared section "
+                     f"{section!r}: {quote[:160]!r}")
 
 
 def _bundle_is_current(manifest: dict[str, Any], paths: dict[str, Path]) -> bool:

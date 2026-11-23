@@ -153,16 +153,23 @@ def _phase(cfg: dict[str, Any], harness: dict[str, Any], prop: dict[str, Any],
     if result_file:
         file_status = _read_result_file(Path(str(_format(result_file, values))))
     raw = _classify(cfg, output, file_status)
+    raw_upper = str(raw or "").upper()
     if res.get("timed_out"):
-        raw = "TIMEOUT"
-    elif not raw and res.get("returncode") == 0 and cfg.get("assume_pass_on_zero"):
-        raw = "PASS"
-    elif not raw and res.get("returncode") not in (0, None):
-        raw = "ERROR"
+        raw_upper = "TIMEOUT"
+    elif not raw_upper:
+        # Never guess.  A zero exit without a recognized result line is an
+        # incomplete/ambiguous run, not a pass.  `assume_pass_on_zero` is kept
+        # only as an explicit escape hatch and is reported as UNTRUSTED.
+        if res.get("returncode") == 0 and cfg.get("assume_pass_on_zero"):
+            raw_upper = "PASS_UNTRUSTED"
+        elif res.get("returncode") not in (0, None):
+            raw_upper = "ERROR"
+        else:
+            raw_upper = ""
 
     return {
-        "result": raw.lower() if raw else "unknown",
-        "status": raw,
+        "result": raw_upper.lower() if raw_upper else "unknown",
+        "status": raw_upper,
         "line": next((x.strip() for x in output.splitlines()
                       if cfg.get("result_pattern")
                       and re.search(str(cfg["result_pattern"]), x, re.IGNORECASE)), ""),
@@ -219,6 +226,13 @@ def run_property(harness: dict[str, Any], prop: dict[str, Any], cfg: dict[str, A
         result["error"] = f"BMC timed out after {actual_timeout}s"
         return result
     status = str(bmc.get("status") or "")
+    if status == "PASS_UNTRUSTED":
+        result["status"] = "ERROR"
+        result["error"] = (
+            "backend exited 0 but produced no recognized result line; "
+            "assume_pass_on_zero is not trusted. Add a result_pattern/result_file."
+        )
+        return result
     if not status:
         result["status"] = "ERROR"
         result["error"] = (
@@ -233,16 +247,23 @@ def run_property(harness: dict[str, Any], prop: dict[str, Any], cfg: dict[str, A
 
     mode = prop.get("mode")
     if mode in ("cover", "assume"):
-        good = {"COVERED", "PASS", "ASSUMED"}
-        bad = {"UNREACHABLE", "FAIL", "VACUOUS"}
+        good = {"COVERED", "PASS", "ASSUMED", "PROVEN_UNREACHABLE"}
+        bad = {"UNREACHABLE", "NOT_REACHED_WITHIN_BOUND", "FAIL", "VACUOUS"}
         if status in good:
-            result["status"] = ("ASSUMED" if mode == "assume" else "COVERED")
+            if status == "PROVEN_UNREACHABLE":
+                result["status"] = "PROVEN_UNREACHABLE"
+            else:
+                result["status"] = ("ASSUMED" if mode == "assume" else "COVERED")
         elif status in bad:
-            result["status"] = ("VACUOUS" if mode == "assume" else "UNREACHABLE")
+            if mode == "assume":
+                result["status"] = "VACUOUS"
+            else:
+                result["status"] = ("PROVEN_UNREACHABLE" if status == "PROVEN_UNREACHABLE"
+                                    else "NOT_REACHED_WITHIN_BOUND")
         else:
             result["status"] = "ERROR"
             result["error"] = f"backend returned {status!r} for a {mode} property"
-        if result["status"] in ("VACUOUS", "UNREACHABLE"):
+        if result["status"] in ("VACUOUS", "NOT_REACHED_WITHIN_BOUND", "PROVEN_UNREACHABLE"):
             log_path = root / str(bmc.get("log") or "")
             result["counterexample"] = _counterexample(
                 log_path.read_text() if log_path.is_file() else "")
