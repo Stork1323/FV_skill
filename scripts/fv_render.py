@@ -175,6 +175,7 @@ def _collect_history(expressions: list[str], interface: dict[str, Any]) -> dict[
                 "arg": arg.strip(),
                 "dims": list(info.get("dims") or []),
                 "width": int(info.get("width") or 1),
+                "signed": bool(info.get("signed")),
                 "name": ident,
             }
     return entries
@@ -184,7 +185,10 @@ def _history_decl(entry: dict[str, Any]) -> str:
     dims = " ".join(entry.get("dims") or [])
     if not dims and int(entry.get("width") or 1) > 1:
         dims = f"[{int(entry['width']) - 1}:0]"
-    return f"  logic {dims + ' ' if dims else ''}{entry['name']};"
+    signed = " signed" if entry.get("signed") else ""
+    decl = f"  logic{signed} {dims + ' ' if dims else ''}{entry['name']};"
+    init = f"  initial {entry['name']} = '0;"
+    return decl + "\n" + init
 
 
 def _history_block(history: dict[str, dict[str, Any]], clock: str, edge: str,
@@ -282,14 +286,17 @@ def _uses_history(prop: dict[str, Any]) -> bool:
     """Whether the property reads a value from a previous cycle.
 
     ``stability`` uses a history register even though its expression has no
-    history function.  A trigger, guard, expression or response that calls
-    ``prev``/``rose``/``fell``/``stable`` also depends on history.
+    history function.  Only actual history-dependent functions create a
+    previous-cycle dependency; pure combinational helpers such as onehot()
+    and onehot0() must not add history gating.
     """
     if prop.get("kind") == "stability":
         return True
     for key in ("when", "trigger", "expr", "response"):
         expr = str(prop.get(key) or "")
-        if expr and find_calls(expr):
+        if not expr:
+            continue
+        if any(name in HISTORY_FUNCS for name, _arg, _s, _e in find_calls(expr)):
             return True
     return False
 
@@ -311,6 +318,7 @@ def _sva_history_guard(prop: dict[str, Any], design: dict[str, Any]) -> str:
 def _history_valid_lines(arm: str, clock: str, edge: str) -> str:
     return (
         "  logic fv_hist_valid;\n"
+        "  initial fv_hist_valid = 1'b0;\n"
         f"  always_ff @({edge} {clock}) fv_hist_valid <= ({arm});"
     )
 
@@ -346,6 +354,7 @@ def _history_for_prop(prop: dict[str, Any], interface: dict[str, Any]) -> dict[s
                 "arg": signal,
                 "dims": list(info.get("dims") or []),
                 "width": int(info.get("width") or 1),
+                "signed": bool(info.get("signed")),
                 "name": _unique("fv_prev_" + _sanitize_ident(signal), used),
             }
     return history
@@ -397,6 +406,7 @@ def _assert_monitor(prop: dict[str, Any], design: dict[str, Any], interface: dic
         expr = map_expr(str(prop["expr"]), history, "monitor", params)
         hist_gate = " && fv_hist_valid" if uses_history else ""
         lines.append("  logic fv_trig_d1;")
+        lines.append("  initial fv_trig_d1 = 1'b0;")
         lines.append(f"  always_ff @({edge} {clock}) begin")
         lines.append(f"    fv_trig_d1 <= ({arm}){hist_gate} && ({trigger});")
         lines.append("  end")
@@ -412,9 +422,11 @@ def _assert_monitor(prop: dict[str, Any], design: dict[str, Any], interface: dic
         hist_gate = " && fv_hist_valid" if uses_history else ""
         for d in range(1, max_delay + 1):
             lines.append(f"  logic fv_trig_d{d};")
+            lines.append(f"  initial fv_trig_d{d} = 1'b0;")
         resp_delays = max_delay - min_delay
         for d in range(1, resp_delays + 1):
             lines.append(f"  logic fv_resp_d{d};")
+            lines.append(f"  initial fv_resp_d{d} = 1'b0;")
         lines.append(f"  always_ff @({edge} {clock}) begin")
         lines.append(f"    fv_trig_d1 <= ({arm}){hist_gate} && ({trigger});")
         for d in range(2, max_delay + 1):
@@ -436,6 +448,7 @@ def _assert_monitor(prop: dict[str, Any], design: dict[str, Any], interface: dic
         hist = history[_hist_key(signal)]["name"]
         for d in range(1, cycles + 1):
             lines.append(f"  logic fv_trig_d{d};")
+            lines.append(f"  initial fv_trig_d{d} = 1'b0;")
         lines.append(f"  always_ff @({edge} {clock}) begin")
         lines.append(f"    fv_trig_d1 <= ({arm}) && fv_hist_valid && ({trigger});")
         for d in range(2, cycles + 1):
@@ -693,7 +706,7 @@ def _old_generated(gen_dir: Path, root: Path) -> list[Path]:
     if not manifest_path.is_file():
         return []
     try:
-        old = json.loads(manifest_path.read_text())
+        old = json.loads(manifest_path.read_text(encoding="utf-8"))
     except Exception:
         return []
     out: list[Path] = []

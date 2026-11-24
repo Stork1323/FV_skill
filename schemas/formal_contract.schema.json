@@ -339,11 +339,43 @@
         },
         "intent": {
           "type": "object",
-          "additionalProperties": true
+          "additionalProperties": false,
+          "properties": {
+            "type": {"enum": ["safety", "reachability", "bounded_response", "environment", "structural", "liveness"]},
+            "owner": {"enum": ["dut", "environment", "verification"]},
+            "sampling": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "signal": {"type": "string"},
+                "edge": {"enum": ["posedge", "negedge"]}
+              }
+            },
+            "reset_policy": {"enum": ["disabled", "active", "none"]},
+            "antecedent": {"type": "string"},
+            "consequent": {"type": "string"},
+            "delay": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "min": {"type": "integer", "minimum": 0},
+                "max": {"type": "integer", "minimum": 0}
+              }
+            },
+            "bound_source": {"enum": ["spec", "interface", "project", "engineering_decision"]},
+            "bound_justification": {"type": "string"}
+          }
         },
         "proof": {
           "type": "object",
-          "additionalProperties": true
+          "additionalProperties": false,
+          "properties": {
+            "method": {"enum": ["bmc", "induction", "helper_invariants", "decomposition", "abstraction", "bounded_reset_check", "unsupported"]},
+            "helpers": {"type": "array", "items": {"type": "string"}},
+            "soundness": {"type": "string"},
+            "backend": {"type": "string"},
+            "notes": {"type": "string"}
+          }
         },
         "configurations": {
           "type": "array",

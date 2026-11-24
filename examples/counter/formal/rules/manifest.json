@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-11-21T01:38:42+00:00",
+  "generated_at": "2026-11-24T09:47:08+00:00",
   "generated_by": "formal-sva/fv_rules.py",
-  "skill_version": "1.1.0",
+  "skill_version": "2.0.0",
   "design": "counter",
   "top": "counter",
   "spec": "spec/spec.md",
@@ -10,14 +10,14 @@
   "tools": "formal/tools.json",
   "tools_sha256": "5b75cd23599a2abc4769428df996cf43d3ef9d01d0dfe1013e5697be0ce40406",
   "files": {
-    "00-workflow.md": "bf216aebd94c1da9bbb317f4cc979c84976c322c310e15f11eec727d8d338b42",
-    "10-extraction.md": "7c0372547c38515c5a345c315092d3da17851510ec2decc29fcf91b1c57332c5",
-    "20-contract.md": "9b8170fde068e3853e2561ba2c92564013afc0864c6c3acbee2706942ec96716",
-    "30-sva.md": "e1d4d76a7a80b21e838c40c9e9659a5e8ec6f18270f96e00a41578166e06421d",
-    "40-run.md": "ddfe4bce01fd1ea4618e3155ddbd966c98bd67697847b9c3b79476b86943a424",
-    "50-review.md": "85315f2e9d3ba6d12ca2354cf304b84a9e43ff596c9f0975148a08276eaad86c",
-    "60-report.md": "f04749716183e804d1309071b04641df932623ab92dd02417b5829784ad2f9ba",
-    "70-regression.md": "36e8e3d884031ac73e40939fee84862805f059b7cb7f09037c3c4ce180bd6bcf"
+    "00-workflow.md": "f3dd1e7f6172e1026863b933beb680932bf9aa555c9da1b95454a32357a59e70",
+    "10-extraction.md": "defca5f375ac7cee6e0edb713747dcf936fc23008c1777f923acd91039500b42",
+    "20-contract.md": "39bd59ed1ac2bbea065d395a30e12ffb0c4768008aa0268b1244970cc6725b99",
+    "30-sva.md": "f0e78f0d2fc8fd2870efc37d2fc122137b2517e9da170fd7b12e1420984434f1",
+    "40-run.md": "ab585234d314fce7056eada04ceee0a841263a522cff52638b4070ee3b90821a",
+    "50-review.md": "2b45c8dde46b28c81f8beebf4301197aa9e9476232f05847584d2ef9d80963ea",
+    "60-report.md": "3b035e9dc8ad8370a4d831753e5cfabb302f36a3083b7e82ee4a5144330c9ffb",
+    "70-regression.md": "5191d54c1f5fde1478a4455c9678dd0fc7068416d1a7228b5605c8551dbd7452"
   },
-  "rules_sha256": "cfa45edf127def95092ef774c6923d44528a9e755b06f2d4e502e0ee4c0591dc"
+  "rules_sha256": "fdaf3dc78ee66abd65ab28ec92ddf779c60fc04ac2788047595a801b1dce32c9"
 }

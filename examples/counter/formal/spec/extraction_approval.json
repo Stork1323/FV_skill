@@ -1,0 +1,8 @@
+{
+  "schema_version": "1.0",
+  "approved": true,
+  "reviewer": "human",
+  "reviewed_at": "2026-11-24T00:00:00+00:00",
+  "scope": "counter example extraction",
+  "notes": "Example fixture approved for regression."
+}

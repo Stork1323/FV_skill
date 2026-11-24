@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-11-19T02:16:05+00:00",
+  "generated_at": "2026-11-24T10:19:52+00:00",
   "design": {
     "name": "counter",
     "top": "counter",
@@ -34,84 +34,212 @@
     "PRP-REQ-001-01": {
       "status": "BMC_PASS",
       "req": "REQ-001",
+      "semantic": {
+        "id": "PRP-REQ-001-01",
+        "req": "REQ-001",
+        "feature": "F01",
+        "kind": "reset_value",
+        "role": "assert",
+        "title": "Reset drives q to zero while i_rst_n is low",
+        "expr": "q == 4'd0",
+        "disable_reset": false,
+        "severity": "error",
+        "tags": [
+          "reset"
+        ],
+        "evidence": {
+          "section": "5.1 Reset",
+          "quote": "While i_rst_n is low, q shall be 4'b0000."
+        }
+      },
       "severity": "error",
       "kind": "reset_value",
-      "role": "assert"
+      "role": "assert",
+      "semantic_sha256": "b77df24bacbac9bc6988440983b97c104798e8e1e171ca3b3646842a42b40fb1",
+      "run_id": "80231ff09c09fd7d",
+      "assumption_set_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     "PRP-REQ-003-01": {
       "status": "PROVEN",
       "req": "REQ-003",
+      "semantic": {
+        "id": "PRP-REQ-003-01",
+        "req": "REQ-003",
+        "feature": "F02",
+        "kind": "next",
+        "role": "assert",
+        "title": "An increment below the maximum adds exactly one",
+        "expr": "q == prev(q) + 4'd1",
+        "trigger": "i_inc && q != 4'd15",
+        "severity": "error",
+        "tags": [
+          "counting"
+        ],
+        "evidence": {
+          "section": "5.2 Counting",
+          "quote": "When i_inc is 1 and q is not 15, q shall increment by 1 on the next rising edge of i_clk."
+        }
+      },
       "severity": "error",
       "kind": "next",
-      "role": "assert"
+      "role": "assert",
+      "semantic_sha256": "07a5c358561118c2c2ec7d45b473c528ca2b595185aa9c65e0d813a4cecad103",
+      "run_id": "80231ff09c09fd7d",
+      "assumption_set_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     "PRP-REQ-004-01": {
       "status": "PROVEN",
       "req": "REQ-004",
+      "semantic": {
+        "id": "PRP-REQ-004-01",
+        "req": "REQ-004",
+        "feature": "F02",
+        "kind": "next",
+        "role": "assert",
+        "title": "Without an increment q holds its value",
+        "expr": "q == prev(q)",
+        "trigger": "!i_inc",
+        "severity": "error",
+        "tags": [
+          "counting"
+        ],
+        "evidence": {
+          "section": "5.2 Counting",
+          "quote": "When i_inc is 0, q shall hold its value on the next rising edge of i_clk."
+        }
+      },
       "severity": "error",
       "kind": "next",
-      "role": "assert"
+      "role": "assert",
+      "semantic_sha256": "6b55fd2e80279af727b0d7134be154fd0cdfe1c10fd017e5e07582bec139fc92",
+      "run_id": "80231ff09c09fd7d",
+      "assumption_set_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     "PRP-REQ-005-01": {
       "status": "PROVEN",
       "req": "REQ-005",
+      "semantic": {
+        "id": "PRP-REQ-005-01",
+        "req": "REQ-005",
+        "feature": "F02",
+        "kind": "next",
+        "role": "assert",
+        "title": "An increment at the maximum wraps to zero",
+        "expr": "q == 4'd0",
+        "trigger": "i_inc && q == 4'd15",
+        "severity": "error",
+        "tags": [
+          "counting",
+          "wrap"
+        ],
+        "evidence": {
+          "section": "5.2 Counting",
+          "quote": "When i_inc is 1 and q is 15, q shall wrap to 0 on the next rising edge of i_clk."
+        }
+      },
       "severity": "error",
       "kind": "next",
-      "role": "assert"
+      "role": "assert",
+      "semantic_sha256": "46e9b3be2e02e29bad7dfea369a1cbd28309cd56a9d55cf470b7edb9d04162c2",
+      "run_id": "80231ff09c09fd7d",
+      "assumption_set_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     },
     "COV-REQ-006-01": {
       "status": "COVERED",
       "req": "REQ-006",
+      "semantic": {
+        "id": "COV-REQ-006-01",
+        "req": "REQ-006",
+        "feature": "F02",
+        "kind": "cover",
+        "role": "cover",
+        "title": "An increment at zero is reachable after reset",
+        "expr": "i_inc && q == 4'd0",
+        "severity": "info",
+        "tags": [
+          "coverage"
+        ],
+        "evidence": {
+          "section": "5.3 Verification scenarios",
+          "quote": "A cycle with i_inc 1 and q 0 shall be reachable after reset."
+        }
+      },
       "severity": "info",
       "kind": "cover",
-      "role": "cover"
+      "role": "cover",
+      "semantic_sha256": "fd184732aada10964eb70c61dd1c6748b7f59baeddb2c7ef09171e387f20281c",
+      "run_id": "80231ff09c09fd7d",
+      "assumption_set_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     }
   },
   "requirements": {
     "REQ-001": {
       "status": "BMC_PASS",
       "req": null,
+      "semantic": {
+        "severity": "error"
+      },
       "severity": "error"
     },
     "REQ-002": {
       "status": "NOT_FORMALIZABLE",
       "req": null,
+      "semantic": {
+        "severity": "info"
+      },
       "severity": "info"
     },
     "REQ-003": {
       "status": "PROVEN",
       "req": null,
+      "semantic": {
+        "severity": "error"
+      },
       "severity": "error"
     },
     "REQ-004": {
       "status": "PROVEN",
       "req": null,
+      "semantic": {
+        "severity": "error"
+      },
       "severity": "error"
     },
     "REQ-005": {
       "status": "PROVEN",
       "req": null,
+      "semantic": {
+        "severity": "error"
+      },
       "severity": "error"
     },
     "REQ-006": {
       "status": "COVERED",
       "req": null,
+      "semantic": {
+        "severity": "info"
+      },
       "severity": "info"
     },
     "REQ-007": {
       "status": "NOT_FORMALIZABLE",
       "req": null,
+      "semantic": {
+        "severity": "info"
+      },
       "severity": "info"
     }
   },
   "features": {
     "F01": {
       "status": "WARN",
-      "req": null
+      "req": null,
+      "semantic": {}
     },
     "F02": {
       "status": "OK",
-      "req": null
+      "req": null,
+      "semantic": {}
     }
   }
 }

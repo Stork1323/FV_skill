@@ -198,7 +198,7 @@ def prepare(manifest: dict[str, Any], out_path: Path | None = None,
             "spec Markdown not found; set spec.markdown in formal/design.json. "
             "Evidence quotes are checked against this file."
         )
-    markdown = markdown_path.read_text()
+    markdown = markdown_path.read_text(encoding="utf-8")
 
     from fv_rules import ensure as ensure_rules
     from fv_tools import ensure_tools

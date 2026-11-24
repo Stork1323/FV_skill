@@ -204,7 +204,7 @@ def review(manifest: dict[str, Any], results: dict[str, Any] | None = None,
     params = list((interface.get("parameters") or {}).keys())
     for path in _sva_files(manifest, harness):
         try:
-            text = path.read_text()
+            text = path.read_text(encoding="utf-8")
         except OSError:
             continue
         rel = rel_to(project_root(manifest), path)

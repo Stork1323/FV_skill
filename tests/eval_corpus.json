@@ -1,0 +1,125 @@
+{
+  "schema_version": "1.1",
+  "cases": [
+    {
+      "id": "good_reset",
+      "expected_requirement_ids": [
+        "REQ-001"
+      ],
+      "expected_requirement_fragments": [
+        "reset"
+      ],
+      "forbidden_fragments": [
+        "invented debug mode"
+      ],
+      "expected_requirements": [
+        {
+          "id": "REQ-001",
+          "disposition": "formalized",
+          "owner": "dut"
+        }
+      ],
+      "expected_properties": [
+        {
+          "id": "PRP-REQ-001-01",
+          "req": "REQ-001",
+          "kind": "reset_value",
+          "role": "assert",
+          "expr": "q == 4'b0000"
+        }
+      ]
+    },
+    {
+      "id": "incorrect_assertion",
+      "expected_requirement_ids": [
+        "REQ-010"
+      ],
+      "expected_properties": [
+        {
+          "id": "PRP-REQ-010-01",
+          "req": "REQ-010",
+          "kind": "always",
+          "role": "assert",
+          "expr": "!i_req || o_ack"
+        }
+      ],
+      "forbidden_fragments": [
+        "o_ack || !i_req && 1"
+      ]
+    },
+    {
+      "id": "invented_requirement",
+      "expected_requirement_ids": [
+        "REQ-001"
+      ],
+      "forbidden_fragments": [
+        "invented debug mode",
+        "sleep pin",
+        "hidden uart"
+      ],
+      "expected_properties": [
+        {
+          "req": "REQ-001",
+          "kind": "reset_value",
+          "role": "assert"
+        }
+      ]
+    },
+    {
+      "id": "missing_clause",
+      "expected_requirement_ids": [
+        "REQ-020"
+      ],
+      "expected_requirement_fragments": [
+        "within 2 cycles"
+      ],
+      "expected_properties": [
+        {
+          "id": "PRP-REQ-020-01",
+          "req": "REQ-020",
+          "kind": "bounded_response",
+          "role": "assert",
+          "min_delay": 1,
+          "max_delay": 2
+        }
+      ]
+    },
+    {
+      "id": "output_constraining_assumption",
+      "expected_properties": [
+        {
+          "id": "ASM-REQ-030-01",
+          "req": "REQ-030",
+          "kind": "always",
+          "role": "assume"
+        }
+      ]
+    },
+    {
+      "id": "ambiguous_spec",
+      "expected_requirements": [
+        {
+          "id": "REQ-040",
+          "disposition": "partially_formalized"
+        }
+      ],
+      "forbidden_fragments": [
+        "fully proven"
+      ]
+    },
+    {
+      "id": "buggy_rtl_variant",
+      "required_error_fragments": [
+        "FAIL"
+      ],
+      "expected_properties": [
+        {
+          "id": "PRP-REQ-050-01",
+          "req": "REQ-050",
+          "kind": "always",
+          "role": "assert"
+        }
+      ]
+    }
+  ]
+}

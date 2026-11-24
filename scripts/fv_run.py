@@ -397,33 +397,121 @@ def _limitations(harness: dict[str, Any], backend: str) -> list[str]:
     ]
 
 
-def _signoff(results: dict[str, Any]) -> dict[str, Any]:
+def _load_signoff_exceptions(manifest: dict[str, Any] | None) -> dict[str, Any]:
+    if not manifest:
+        return {}
+    path = project_root(manifest) / "formal" / "signoff_exceptions.json"
+    if not path.is_file():
+        return {}
+    try:
+        data = read_json(path)
+    except FvError:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _exception_ids(exceptions: dict[str, Any]) -> set[str]:
+    ids: set[str] = set()
+    for item in exceptions.get("exceptions") or []:
+        if not isinstance(item, dict):
+            continue
+        if item.get("approved") is False:
+            continue
+        for key in ("id", "requirement", "property", "scope"):
+            val = item.get(key)
+            if isinstance(val, str) and val.strip():
+                ids.add(val.strip())
+        for val in item.get("ids") or []:
+            if isinstance(val, str) and val.strip():
+                ids.add(val.strip())
+    return ids
+
+
+def compute_signoff(results: dict[str, Any], manifest: dict[str, Any] | None = None,
+                    regression: dict[str, Any] | None = None,
+                    allow_review_errors: bool = False) -> dict[str, Any]:
     summary = results.get("summary") or {}
     reqs = results.get("requirements") or []
     props = results.get("properties") or []
     review = results.get("review") or {}
-    blocking = []
+    ledger = results.get("completeness_ledger") or {}
+    exceptions = _load_signoff_exceptions(manifest)
+    excepted = _exception_ids(exceptions)
+
+    blocking: list[str] = []
+    warnings: list[str] = []
+
     if summary.get("overall") != "PASS":
         blocking.append("verification run is not PASS")
-    if any(r.get("disposition") in ("formalized", "partially_formalized")
-           and r.get("status") in BAD_ERROR for r in reqs):
-        blocking.append("one or more formalized requirements are not discharged")
-    if any(p.get("role") == "assume" and p.get("status") != "ASSUMED" for p in props):
-        blocking.append("assumptions are not all satisfiable/checked")
+
+    unresolved_reqs = []
+    for r in reqs:
+        disp = r.get("disposition")
+        status = r.get("status")
+        rid = str(r.get("id") or "")
+        if disp in ("formalized", "partially_formalized", "assumption"):
+            if status in BAD_ERROR or status in WARN_ERROR or status in (
+                    "NOT_FORMALIZED", "MISSING", "UNKNOWN", "PARTIALLY_PROVEN", "INCOMPLETE_OBLIGATION"):
+                if rid in excepted or f"req:{rid}" in excepted:
+                    warnings.append(f"requirement {rid} has approved exception ({status})")
+                else:
+                    unresolved_reqs.append(rid)
+    if unresolved_reqs:
+        blocking.append("mandatory/unresolved requirement obligations: " + ", ".join(sorted(unresolved_reqs)))
+
+    bad_assumes = [str(p.get("id")) for p in props
+                   if p.get("role") == "assume" and p.get("status") != "ASSUMED"]
+    bad_assumes = [pid for pid in bad_assumes if pid not in excepted and f"prop:{pid}" not in excepted]
+    if bad_assumes:
+        blocking.append("assumptions not satisfiable/checked: " + ", ".join(sorted(bad_assumes)))
+
     if review.get("overall") == "ACTION_REQUIRED":
-        blocking.append("SVA/constraint review requires action")
+        if allow_review_errors:
+            warnings.append("SVA/constraint review requires action (explicitly allowed)")
+        else:
+            blocking.append("SVA/constraint review requires action")
+    elif review.get("overall") == "WARN":
+        warnings.append("SVA/constraint review has warnings")
+
+    regression = regression or results.get("regression") or {}
+    if regression.get("overall") in ("FAIL", "ERROR"):
+        blocking.append("regression comparison is not passing")
+    elif regression.get("overall") == "WARN":
+        warnings.append("regression comparison has warnings")
+
+    ledger_summary = ledger.get("summary") or {}
+    unmapped = int(ledger_summary.get("unmapped") or 0)
+    if unmapped > 0:
+        warnings.append(f"completeness ledger has {unmapped} unmapped normative statement(s)")
+
+    # Strict signoff: mandatory unresolved obligations must block unless excepted.
+    strict_blocking = list(blocking)
+    strict_ready = not strict_blocking
+
     return {
+        "schema_version": "1.1",
         "execution_complete": all(p.get("status") not in ("ERROR", "TIMEOUT") for p in props),
         "proof_complete": all(r.get("status") == "PROVEN" for r in reqs
                               if r.get("disposition") == "formalized"),
         "reachability_checked": not any(p.get("role") == "cover"
-                                        and p.get("status") in ("UNREACHABLE", "NOT_REACHED_WITHIN_BOUND")
+                                        and p.get("status") in ("UNREACHABLE", "NOT_REACHED_WITHIN_BOUND", "PROVEN_UNREACHABLE")
+                                        and p.get("severity") == "error"
                                         for p in props),
         "environment_checked": all(p.get("status") == "ASSUMED" for p in props if p.get("role") == "assume"),
-        "no_requirement_gaps": not any(r.get("status") in BAD_ERROR for r in reqs),
-        "signoff_ready": not blocking,
-        "blocking_reasons": blocking,
+        "review_clean": review.get("overall") in (None, "", "OK", "PASS"),
+        "regression_clean": regression.get("overall") in (None, "", "PASS"),
+        "no_requirement_gaps": not unresolved_reqs,
+        "strict_signoff_ready": strict_ready,
+        "signoff_ready": strict_ready,
+        "blocking_reasons": strict_blocking,
+        "warnings": warnings,
+        "exceptions_applied": sorted(excepted),
     }
+
+
+def _signoff(results: dict[str, Any]) -> dict[str, Any]:
+    """Backward-compatible wrapper; prefer compute_signoff(...)."""
+    return compute_signoff(results)
 
 
 def _markdown(results: dict[str, Any]) -> str:
@@ -490,11 +578,18 @@ def _markdown(results: dict[str, Any]) -> str:
     lines.append("## Signoff readiness")
     lines.append("")
     for k, v in signoff.items():
-        if k == "blocking_reasons":
+        if k in ("blocking_reasons", "warnings", "exceptions_applied"):
             continue
-        lines.append(f"- **{k.replace('_', ' ').title()}:** {'yes' if v else 'no'}")
+        if isinstance(v, bool):
+            lines.append(f"- **{k.replace('_', ' ').title()}:** {'yes' if v else 'no'}")
+        else:
+            lines.append(f"- **{k.replace('_', ' ').title()}:** {_md_escape(v)}")
     if signoff.get("blocking_reasons"):
         lines.append("- **Blocking reasons:** " + "; ".join(signoff["blocking_reasons"]))
+    if signoff.get("warnings"):
+        lines.append("- **Warnings:** " + "; ".join(signoff["warnings"]))
+    if signoff.get("exceptions_applied"):
+        lines.append("- **Exceptions applied:** " + ", ".join(signoff["exceptions_applied"]))
     lines.append("")
     features = results.get("features") or []
     if features:
@@ -749,11 +844,31 @@ def run_all(manifest: dict[str, Any], contract_path: Path | None = None,
         }, sort_keys=True).encode("utf-8")
     ).hexdigest()[:16]
 
+    contract_props = {str(p.get("id")): p for p in contract.get("properties") or []}
+    assumption_set = [p for p in contract.get("properties") or [] if p.get("role") == "assume"]
+    assumption_set_sha = hashlib.sha256(
+        json.dumps([{k: p.get(k) for k in sorted(p.keys())} for p in assumption_set],
+                   sort_keys=True, default=str).encode("utf-8")
+    ).hexdigest()
+
     ordered: list[dict[str, Any]] = []
     for prop in props:
         run = results_by_id[str(prop["id"])]
+        cprop = contract_props.get(str(prop.get("id"))) or {}
         prop_hash = hashlib.sha256(
             json.dumps({k: prop.get(k) for k in sorted(prop.keys())}, sort_keys=True, default=str).encode("utf-8")
+        ).hexdigest()
+        semantic = {
+            k: cprop.get(k) for k in (
+                "id", "req", "feature", "kind", "role", "title", "when", "expr",
+                "trigger", "response", "min_delay", "max_delay", "signal", "cycles",
+                "disable_reset", "depth", "severity", "tags", "evidence",
+                "obligation", "owner", "intent", "proof", "configurations",
+                "delay_source", "induction_helpers", "limitations",
+            ) if cprop.get(k) is not None
+        }
+        semantic_sha = hashlib.sha256(
+            json.dumps(semantic, sort_keys=True, default=str).encode("utf-8")
         ).hexdigest()
         merged = {
             **run,
@@ -763,19 +878,39 @@ def run_all(manifest: dict[str, Any], contract_path: Path | None = None,
             "severity": prop.get("severity") or "error",
             "evidence": prop.get("evidence"),
             "tags": prop.get("tags") or [],
+            "obligation": cprop.get("obligation") or prop.get("obligation"),
+            "owner": cprop.get("owner") or prop.get("owner"),
+            "intent": cprop.get("intent"),
+            "proof": cprop.get("proof"),
+            "configurations": cprop.get("configurations"),
+            "delay_source": cprop.get("delay_source"),
+            "when": cprop.get("when"),
+            "expr": cprop.get("expr"),
+            "trigger": cprop.get("trigger"),
+            "response": cprop.get("response"),
+            "min_delay": cprop.get("min_delay"),
+            "max_delay": cprop.get("max_delay"),
+            "signal": cprop.get("signal"),
+            "cycles": cprop.get("cycles"),
+            "disable_reset": cprop.get("disable_reset"),
             "run_id": run_fingerprint,
             "config": {
                 "design": (contract.get("design") or {}).get("name"),
                 "top": (contract.get("design") or {}).get("top"),
                 "parameters": (contract.get("design") or {}).get("parameters"),
                 "backend": backend_info.get("name"),
+                "backend_kind": backend_info.get("kind"),
                 "depth": run.get("depth"),
+                "reset_cycles": prop.get("reset_cycles"),
             },
+            "semantic": semantic,
+            "semantic_sha256": semantic_sha,
             "artifact_hashes": {
                 "contract_sha256": (harness.get("contract") or {}).get("sha256"),
                 "bundle_sha256": (harness.get("bundle") or {}).get("sha256"),
                 "harness_sha256": sha256_file(Path(harness["_path"])) if harness.get("_path") else "",
                 "property_sha256": prop_hash,
+                "assumption_set_sha256": assumption_set_sha,
             },
         }
         # Reject conflicting/incomplete backend markers: a pass with counterexample
@@ -833,8 +968,6 @@ def run_all(manifest: dict[str, Any], contract_path: Path | None = None,
             "junit": rel_to(root, Path(manifest["_paths"]["reports"]) / "junit.xml"),
         },
     }
-    results["signoff"] = _signoff(results)
-
     # The review is part of every completed run: verification results alone do not
     # show whether the properties and constraints themselves are trustworthy.
     if with_review:
@@ -866,6 +999,45 @@ def run_all(manifest: dict[str, Any], contract_path: Path | None = None,
     except Exception as exc:
         results.setdefault("warnings", []).append(f"plan/ledger generation failed: {exc}")
 
+    provenance = {
+        "generated_by": "formal-sva/fv_run.py",
+        "run_id": run_fingerprint,
+        "model": {"id": "unknown", "provider": "unknown", "note": "populated by agent when available"},
+        "prompt_template_versions": {},
+        "input_hashes": {
+            "contract_sha256": (harness.get("contract") or {}).get("sha256"),
+            "bundle_sha256": (harness.get("bundle") or {}).get("sha256"),
+            "harness_sha256": sha256_file(Path(harness["_path"])) if harness.get("_path") else "",
+            "tools_sha256": "",
+        },
+        "tool_versions": {
+            "skill_version": __import__("fv_common").SKILL_VERSION,
+            "backend": backend_info,
+        },
+        "validation_feedback": list(results.get("warnings") or []),
+        "repair_history": [],
+        "trust_boundary": {
+            "spec_and_rtl_are_data": True,
+            "tool_logs_are_data": True,
+            "untrusted_inputs_must_not_override_policy": True,
+        },
+    }
+    try:
+        from fv_tools import tools_hash
+        provenance["input_hashes"]["tools_sha256"] = tools_hash(manifest)
+    except Exception:
+        pass
+    try:
+        prompts_dir = Path(__file__).resolve().parent.parent / "prompts"
+        if prompts_dir.is_dir():
+            provenance["prompt_template_versions"] = {
+                p.name: sha256_file(p) for p in sorted(prompts_dir.glob("*.md"))
+            }
+    except Exception:
+        pass
+    results["provenance"] = provenance
+    results["signoff"] = compute_signoff(results, manifest)
+
     # Persist artifacts.
     write_artifacts(manifest, results)
     if not quiet:
@@ -877,6 +1049,57 @@ def run_all(manifest: dict[str, Any], contract_path: Path | None = None,
         print(f"overall: {summary['overall']}  "
               + "  ".join(f"{k}={v}" for k, v in sorted(summary['statuses'].items())))
     return results
+
+
+def check_results_binding(results: dict[str, Any], manifest: dict[str, Any] | None = None,
+                          contract_path: Path | None = None) -> list[str]:
+    """Return binding/staleness errors for a results document."""
+    errors: list[str] = []
+    if not isinstance(results, dict):
+        return ["results must be an object"]
+    if not results.get("run_id"):
+        errors.append("results missing run_id; rerun verification")
+    if not isinstance(results.get("properties"), list):
+        errors.append("results missing properties list")
+    contract = results.get("contract") or {}
+    if not contract.get("sha256"):
+        errors.append("results missing contract.sha256")
+    if manifest is not None:
+        cpath = contract_path or Path(manifest["_paths"]["contract"])
+        if Path(cpath).is_file():
+            current = sha256_file(Path(cpath))
+            recorded = contract.get("sha256")
+            if recorded and recorded != current:
+                errors.append(
+                    f"results are stale / contract does not match: contract sha256 {recorded} != current {current}; rerun verification")
+        hpath = Path(manifest["_paths"]["sva"]) / "generated" / "fv_manifest.json"
+        if hpath.is_file():
+            try:
+                harness = json.loads(hpath.read_text(encoding="utf-8"))
+                hsha = (harness.get("contract") or {}).get("sha256")
+                recorded = contract.get("sha256")
+                if hsha and recorded and hsha != recorded:
+                    errors.append("results do not match rendered harness contract; rerender/rerun")
+            except Exception:
+                pass
+    seen: set[str] = set()
+    for i, p in enumerate(results.get("properties") or []):
+        if not isinstance(p, dict):
+            errors.append(f"properties[{i}] is not an object")
+            continue
+        pid = str(p.get("id") or "")
+        if not pid:
+            errors.append(f"properties[{i}] missing id")
+        elif pid in seen:
+            errors.append(f"duplicate property id in results: {pid}")
+        seen.add(pid)
+        if not p.get("status"):
+            errors.append(f"property {pid or i} missing status")
+        if not p.get("config"):
+            errors.append(f"property {pid or i} missing config binding")
+        if not p.get("artifact_hashes"):
+            errors.append(f"property {pid or i} missing artifact_hashes")
+    return errors
 
 
 def write_artifacts(manifest: dict[str, Any], results: dict[str, Any]) -> None:

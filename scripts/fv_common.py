@@ -60,7 +60,7 @@ def eprint(*args: Any) -> None:
 def read_json(path: Path) -> Any:
     path = Path(path)
     try:
-        return json.loads(path.read_text())
+        return json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
         raise FvError(f"file not found: {path}")
     except json.JSONDecodeError as exc:
@@ -70,14 +70,14 @@ def read_json(path: Path) -> Any:
 def write_json(path: Path, obj: Any) -> Path:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(obj, indent=2, sort_keys=False) + "\n")
+    path.write_bytes((json.dumps(obj, indent=2, sort_keys=False, ensure_ascii=False) + "\n").encode("utf-8"))
     return path
 
 
 def write_text(path: Path, text: str) -> Path:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(text)
+    path.write_bytes(text.encode("utf-8"))
     return path
 
 

@@ -34,6 +34,7 @@
       {
         "name": "i_clk",
         "direction": "input",
+        "signed": false,
         "width": 1,
         "dims": [],
         "ndims": 0,
@@ -44,6 +45,7 @@
       {
         "name": "i_rst_n",
         "direction": "input",
+        "signed": false,
         "width": 1,
         "dims": [],
         "ndims": 0,
@@ -54,6 +56,7 @@
       {
         "name": "i_inc",
         "direction": "input",
+        "signed": false,
         "width": 1,
         "dims": [],
         "ndims": 0,
@@ -64,6 +67,7 @@
       {
         "name": "q",
         "direction": "output",
+        "signed": false,
         "width": 4,
         "dims": [
           "[3:0]"
@@ -264,7 +268,7 @@
     "headings": [
       {
         "level": 1,
-        "text": "Counter \u2014 Block Specification"
+        "text": "Counter — Block Specification"
       },
       {
         "level": 2,
@@ -312,7 +316,7 @@
     "extraction": "formal/spec/requirements.md",
     "extraction_json": "formal/spec/requirements.json"
   },
-  "rules_sha256": "cfa45edf127def95092ef774c6923d44528a9e755b06f2d4e502e0ee4c0591dc",
+  "rules_sha256": "fdaf3dc78ee66abd65ab28ec92ddf779c60fc04ac2788047595a801b1dce32c9",
   "sources": {
     "structured_spec": {
       "path": "schemas/structured_spec.json",
@@ -332,7 +336,7 @@
     },
     "extraction": {
       "path": "formal/spec/requirements.json",
-      "sha256": "7350a7b0b4c26c969b448a98bd2cf02fe47904bf781140af03c54db97c30d1c7"
+      "sha256": "ef80850c0c8aa791f9b60127f7e3237f2dbc61bf0040f4cc28b74914af892c37"
     },
     "design": {
       "path": "formal/design.json",

@@ -81,7 +81,7 @@ def _read_result_file(path: Path) -> str:
     if not path.is_file():
         return ""
     try:
-        data = json.loads(path.read_text())
+        data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return ""
     if isinstance(data, dict):
@@ -92,22 +92,32 @@ def _read_result_file(path: Path) -> str:
 
 
 def _classify(cfg: dict[str, Any], output: str, result_file: str) -> str:
-    if result_file:
-        raw = result_file
-    else:
-        pattern = cfg.get("result_pattern")
-        raw = ""
-        if pattern:
-            rx = re.compile(str(pattern), re.MULTILINE | re.IGNORECASE)
-            for match in rx.finditer(output):
-                raw = (match.groupdict().get("status")
-                       or (match.group(1) if match.groups() else match.group(0)))
-                break
-    if not raw:
-        return ""
     status_map = {str(k).upper(): str(v).upper()
                   for k, v in (cfg.get("status_map") or {}).items()}
-    return status_map.get(raw.strip().upper(), raw.strip().upper())
+    if result_file:
+        raw = str(result_file).strip().upper()
+        mapped = status_map.get(raw, raw)
+        return mapped
+    pattern = cfg.get("result_pattern")
+    if not pattern:
+        return ""
+    rx = re.compile(str(pattern), re.MULTILINE | re.IGNORECASE)
+    found: list[str] = []
+    for match in rx.finditer(output):
+        raw = (match.groupdict().get("status")
+               or (match.group(1) if match.groups() else match.group(0)))
+        if not raw:
+            continue
+        raw_upper = str(raw).strip().upper()
+        found.append(status_map.get(raw_upper, raw_upper))
+    if not found:
+        return ""
+    uniq = list(dict.fromkeys(found))
+    # Contradictory terminal markers are never trustworthy.
+    terminal = {s for s in uniq if s in {"PROVEN", "PASS", "BMC_PASS", "FAIL", "ERROR", "TIMEOUT", "COVERED", "UNREACHABLE", "VACUOUS", "ASSUMED"}}
+    if len(terminal) > 1:
+        return "CONFLICT"
+    return uniq[-1]
 
 
 def _phase(cfg: dict[str, Any], harness: dict[str, Any], prop: dict[str, Any],
@@ -156,6 +166,8 @@ def _phase(cfg: dict[str, Any], harness: dict[str, Any], prop: dict[str, Any],
     raw_upper = str(raw or "").upper()
     if res.get("timed_out"):
         raw_upper = "TIMEOUT"
+    elif raw_upper == "CONFLICT":
+        pass
     elif not raw_upper:
         # Never guess.  A zero exit without a recognized result line is an
         # incomplete/ambiguous run, not a pass.  `assume_pass_on_zero` is kept
@@ -226,6 +238,10 @@ def run_property(harness: dict[str, Any], prop: dict[str, Any], cfg: dict[str, A
         result["error"] = f"BMC timed out after {actual_timeout}s"
         return result
     status = str(bmc.get("status") or "")
+    if status == "CONFLICT":
+        result["status"] = "ERROR"
+        result["error"] = "conflicting backend result markers in log; inspect and fix result_pattern/status_map"
+        return result
     if status == "PASS_UNTRUSTED":
         result["status"] = "ERROR"
         result["error"] = (
@@ -266,7 +282,7 @@ def run_property(harness: dict[str, Any], prop: dict[str, Any], cfg: dict[str, A
         if result["status"] in ("VACUOUS", "NOT_REACHED_WITHIN_BOUND", "PROVEN_UNREACHABLE"):
             log_path = root / str(bmc.get("log") or "")
             result["counterexample"] = _counterexample(
-                log_path.read_text() if log_path.is_file() else "")
+                log_path.read_text(encoding="utf-8") if log_path.is_file() else "")
         if not quiet:
             eprint(f"[{pid}] {result['status']} ({result['elapsed_s']}s)")
         return result
@@ -275,7 +291,7 @@ def run_property(harness: dict[str, Any], prop: dict[str, Any], cfg: dict[str, A
         result["status"] = "FAIL"
         log_path = root / str(bmc.get("log") or "")
         result["counterexample"] = _counterexample(
-            log_path.read_text() if log_path.is_file() else "")
+            log_path.read_text(encoding="utf-8") if log_path.is_file() else "")
         result["error"] = bmc.get("line") or "backend found a counterexample"
         return result
     if status == "PROVEN":
@@ -303,10 +319,15 @@ def run_property(harness: dict[str, Any], prop: dict[str, Any], cfg: dict[str, A
         "script": induct.get("script"),
         "log": induct.get("log"),
     }
-    if induct.get("status") == "PROVEN":
+    if induct.get("status") == "CONFLICT":
+        result["status"] = "BMC_PASS"
+        result["induction"]["reason"] = "conflicting induction result markers; not treated as proof"
+    elif induct.get("status") == "PROVEN":
         result["status"] = "PROVEN"
     elif induct.get("timed_out"):
         result["induction"]["reason"] = f"induction timed out after {actual_timeout}s"
+    elif induct.get("status") in ("ERROR", "TIMEOUT"):
+        result["induction"]["reason"] = induct.get("line") or f"induction reported {induct.get('status')}"
     else:
         result["induction"]["reason"] = induct.get("line") or "induction did not prove the property"
     if not quiet:

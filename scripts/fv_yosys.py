@@ -66,7 +66,7 @@ def load_harness(manifest: dict[str, Any], harness_path: Path | None = None) -> 
             "run `fv.py render --design ...` first"
         )
     try:
-        harness = json.loads(path.read_text())
+        harness = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
         raise FvError(f"invalid harness JSON in {path}: {exc}")
     if harness.get("schema_version") != RENDER_SCHEMA_VERSION:
@@ -191,32 +191,58 @@ def _sat_line(harness: dict[str, Any], prop: dict[str, Any], depth: int,
 
 
 def parse_sat(output: str) -> dict[str, Any]:
-    """Classify a Yosys SAT/induction log without trusting the exit code."""
-    for line in output.splitlines():
-        m = re.match(r"^\s*ERROR:\s*(.*)$", line)
-        if m:
-            return {"result": "error", "line": line.strip(), "detail": m.group(1)}
-    if "Induction step proven: SUCCESS!" in output:
-        return {"result": "proven", "line": "Induction step proven: SUCCESS!"}
-    if "Induction step failed:" in output:
-        line = next((x.strip() for x in output.splitlines() if "Induction step failed:" in x), "")
-        return {"result": "induction_fail", "line": line}
-    if "SAT proof finished - no model found: SUCCESS!" in output:
-        return {"result": "pass", "line": "SAT proof finished - no model found: SUCCESS!"}
-    if "SAT temporal induction proof finished - model found for base case: FAIL!" in output:
-        return {"result": "induction_fail",
-                "line": "SAT temporal induction proof finished - model found for base case: FAIL!"}
-    if "SAT proof finished - model found: FAIL!" in output:
-        return {"result": "fail", "line": "SAT proof finished - model found: FAIL!"}
-    if "SAT solving finished - model found: FAIL!" in output:
-        return {"result": "fail", "line": "SAT solving finished - model found: FAIL!"}
-    if "no model found: SUCCESS!" in output:
-        return {"result": "pass", "line": next(
-            x.strip() for x in output.splitlines() if "no model found: SUCCESS!" in x)}
-    if "model found: FAIL!" in output:
-        return {"result": "fail", "line": next(
-            x.strip() for x in output.splitlines() if "model found: FAIL!" in x)}
-    return {"result": "unknown", "line": ""}
+    """Classify a Yosys SAT/induction log without trusting the exit code.
+
+    P0: contradictory or incomplete markers are errors, never successes.
+    """
+    error_lines = [line.strip() for line in output.splitlines()
+                   if re.match(r"^\s*ERROR:\s*", line)]
+    if any("Killed" in line or "Traceback" in line for line in output.splitlines()):
+        error_lines.append(next(line.strip() for line in output.splitlines()
+                                if "Killed" in line or "Traceback" in line))
+    lower = output.lower()
+    markers: list[tuple[str, str]] = []
+    for pat, kind in (
+            ("Induction step proven: SUCCESS!", "proven"),
+            ("Induction step failed:", "induction_fail"),
+            ("SAT temporal induction proof finished - model found for base case: FAIL!", "induction_fail"),
+            ("SAT proof finished - no model found: SUCCESS!", "pass"),
+            ("SAT proof finished - model found: FAIL!", "fail"),
+            ("SAT solving finished - model found: FAIL!", "fail"),
+    ):
+        if pat in output:
+            line = next((x.strip() for x in output.splitlines() if pat in x), pat)
+            markers.append((kind, line))
+    if not markers:
+        if "no model found: SUCCESS!" in output:
+            line = next(x.strip() for x in output.splitlines() if "no model found: SUCCESS!" in x)
+            markers.append(("pass", line))
+        if "model found: FAIL!" in output:
+            line = next(x.strip() for x in output.splitlines() if "model found: FAIL!" in x)
+            markers.append(("fail", line))
+    kinds = {k for k, _ in markers}
+    if "proven" in kinds and {"fail", "induction_fail"} & kinds:
+        return {"result": "error", "line": "conflicting SAT markers",
+                "detail": "log contains both proven and fail/induction_fail markers"}
+    if "pass" in kinds and "fail" in kinds:
+        return {"result": "error", "line": "conflicting SAT markers",
+                "detail": "log contains both pass and fail markers"}
+    if error_lines and markers:
+        # Error plus result marker is suspicious; keep the marker only if it's a clear fail.
+        if kinds <= {"fail", "induction_fail"}:
+            kind, line = markers[-1]
+            return {"result": kind, "line": line, "detail": error_lines[0]}
+        return {"result": "error", "line": error_lines[0], "detail": error_lines[0]}
+    if error_lines:
+        return {"result": "error", "line": error_lines[0], "detail": error_lines[0]}
+    if not markers:
+        return {"result": "unknown", "line": ""}
+    # Prefer the most specific marker.
+    for kind in ("proven", "induction_fail", "fail", "pass"):
+        for k, line in markers:
+            if k == kind:
+                return {"result": kind, "line": line}
+    return {"result": markers[-1][0], "line": markers[-1][1]}
 
 
 def parse_counterexample(output: str, limit: int = 160) -> list[str]:

@@ -26,39 +26,44 @@ def build(manifest: dict[str, Any], bundle: dict[str, Any] | None = None) -> dic
     bundle = bundle or read_json(paths["bundle"])
     root = project_root(manifest)
     spec_path = resolve_path(root, (bundle.get("spec") or {}).get("markdown") or (manifest.get("spec") or {}).get("markdown") or "spec/spec.md")
-    spec_text = spec_path.read_text() if spec_path.is_file() else ""
+    spec_text = spec_path.read_text(encoding="utf-8") if spec_path.is_file() else ""
     lines = spec_text.splitlines()
     reqs = bundle.get("requirements") or []
     req_texts = [normalize_text(str(r.get("text") or "") + " " + str((r.get("evidence") or {}).get("quote") or r.get("evidence") or "")) for r in reqs]
 
     entries = []
+    clause_idx = 0
     for i, line in enumerate(lines, 1):
         raw = line.strip()
         if not raw or raw.startswith("#") or raw.startswith("|---"):
             continue
-        if not NORMATIVE_RE.search(raw):
-            continue
-        norm = normalize_text(raw)
-        matched = []
-        for r, rt in zip(reqs, req_texts):
-            if norm and (norm in rt or rt in norm or any(w in rt for w in normalize_text(r.get("text") or "").split()[:8])):
-                # conservative overlap; confirm with evidence containment below
-                pass
-            ev = r.get("evidence")
-            quote = normalize_text((ev or {}).get("quote") if isinstance(ev, dict) else str(ev or ""))
-            if quote and (quote in norm or norm in quote):
-                matched.append(str(r.get("id")))
+        # split into independent normative clauses
+        parts = [p.strip(" -\t") for p in re.split(r"[;](?=\s+[A-Z(])|(?<=\.)\s+(?=[A-Z(])", raw) if p.strip()]
+        if not parts:
+            parts = [raw]
+        for part in parts:
+            if not NORMATIVE_RE.search(part):
                 continue
-            rnorm = normalize_text(str(r.get("text") or ""))
-            if rnorm and (rnorm in norm or norm in rnorm):
-                matched.append(str(r.get("id")))
-        matched = sorted(set(matched))
-        entries.append({
-            "line": i,
-            "text": raw,
-            "status": "mapped" if matched else "unmapped",
-            "requirements": matched,
-        })
+            clause_idx += 1
+            norm = normalize_text(part)
+            matched = []
+            for r, rt in zip(reqs, req_texts):
+                ev = r.get("evidence")
+                quote = normalize_text((ev or {}).get("quote") if isinstance(ev, dict) else str(ev or ""))
+                if quote and (quote in norm or norm in quote):
+                    matched.append(str(r.get("id")))
+                    continue
+                rnorm = normalize_text(str(r.get("text") or ""))
+                if rnorm and (rnorm in norm or norm in rnorm):
+                    matched.append(str(r.get("id")))
+            matched = sorted(set(matched))
+            entries.append({
+                "id": f"CLS-{clause_idx:03d}",
+                "line": i,
+                "text": part,
+                "status": "mapped" if matched else "unmapped",
+                "requirements": matched,
+            })
 
     unmapped = [e for e in entries if e["status"] == "unmapped"]
     doc = {

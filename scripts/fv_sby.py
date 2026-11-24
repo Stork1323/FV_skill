@@ -159,30 +159,63 @@ def _sby_text(harness: dict[str, Any], prop: dict[str, Any], mode: str,
 
 
 def _parse(output: str, mode: str) -> dict[str, Any]:
-    for line in output.splitlines():
-        if re.search(r"DONE\s+\(TIMEOUT", line, re.I):
-            return {"result": "timeout", "line": line.strip()}
-        if re.search(r"DONE\s+\(ERROR", line, re.I):
-            return {"result": "error", "line": line.strip()}
-    if "Induction step proven: SUCCESS!" in output:
+    lines = output.splitlines()
+    has_timeout = any(re.search(r"DONE\s+\(TIMEOUT", line, re.I) for line in lines)
+    has_error = any(re.search(r"DONE\s+\(ERROR", line, re.I) for line in lines)
+    has_pass = bool(re.search(r"DONE\s+\(PASS", output, re.I) or "no model found: SUCCESS!" in output)
+    has_fail = bool(re.search(r"DONE\s+\(FAIL", output, re.I) or "model found: FAIL!" in output)
+    has_proven = "Induction step proven: SUCCESS!" in output
+    if has_pass and has_fail:
+        return {"result": "error", "line": "conflicting SBY markers",
+                "detail": "log contains both PASS and FAIL markers"}
+    if has_proven and has_fail:
+        return {"result": "error", "line": "conflicting SBY markers",
+                "detail": "log contains both proven and fail markers"}
+    if has_timeout:
+        return {"result": "timeout", "line": next(line.strip() for line in lines if re.search(r"DONE\s+\(TIMEOUT", line, re.I))}
+    if has_error and not (has_pass or has_fail or has_proven):
+        return {"result": "error", "line": next(line.strip() for line in lines if re.search(r"DONE\s+\(ERROR", line, re.I))}
+    if has_proven:
         return {"result": "proven", "line": "Induction step proven: SUCCESS!"}
-    if re.search(r"DONE\s+\(PASS", output, re.I):
+    if has_pass:
         return {"result": "pass", "line": next(
-            x.strip() for x in output.splitlines() if re.search(r"DONE\s+\(PASS", x, re.I))}
-    if re.search(r"DONE\s+\(FAIL", output, re.I):
+            (x.strip() for x in lines if re.search(r"DONE\s+\(PASS", x, re.I) or "no model found: SUCCESS!" in x), "PASS")}
+    if has_fail:
         return {"result": "fail", "line": next(
-            x.strip() for x in output.splitlines() if re.search(r"DONE\s+\(FAIL", x, re.I))}
-    if "model found: FAIL!" in output:
-        return {"result": "fail", "line": "SAT solver found a model"}
-    if "no model found: SUCCESS!" in output:
-        return {"result": "pass", "line": "SAT solver found no model"}
+            (x.strip() for x in lines if re.search(r"DONE\s+\(FAIL", x, re.I) or "model found: FAIL!" in x), "FAIL")}
+    if has_error:
+        return {"result": "error", "line": next(line.strip() for line in lines if re.search(r"DONE\s+\(ERROR", line, re.I))}
     return {"result": "unknown", "line": ""}
 
 
-def _counterexample(output: str, limit: int = 160) -> list[str]:
+def _counterexample(output: str, build: Path | None = None, limit: int = 160) -> list[str]:
     rows = [line.rstrip() for line in output.splitlines()
             if re.match(r"^\s*\d+\s+[\\$A-Za-z_]", line)]
-    return rows[-limit:]
+    if rows:
+        return rows[-limit:]
+    if build is not None:
+        # SBY usually writes traces to files; include a compact trace_tb excerpt.
+        for tb in sorted(build.rglob("trace_tb.v")):
+            try:
+                tb_lines = tb.read_text(encoding="utf-8", errors="replace").splitlines()
+            except Exception:
+                continue
+            excerpt: list[str] = [f"trace_tb: {tb}"]
+            for line in tb_lines:
+                s = line.rstrip()
+                if not s:
+                    continue
+                if re.search(r"\b(state \d+|PI_|UUT\.|cycle ==|Assert failed|initial begin|anyinit)", s):
+                    excerpt.append(s[:220])
+                if len(excerpt) >= limit:
+                    break
+            if len(excerpt) > 1:
+                return excerpt
+        for vcd in sorted(build.rglob("trace.vcd")):
+            return [f"trace_vcd: {vcd}"]
+        for yw in sorted(build.rglob("trace.yw")):
+            return [f"trace_yw: {yw}"]
+    return []
 
 
 def _find_log(build: Path, stem: str) -> Path | None:
@@ -234,7 +267,7 @@ def run_property(harness: dict[str, Any], prop: dict[str, Any], cfg: dict[str, A
         output = res.get("output") or ""
         log_path = _find_log(build, phase)
         if log_path:
-            output += "\n" + log_path.read_text(errors="replace")
+            output += "\n" + log_path.read_text(encoding="utf-8", errors="replace")
         log_file = logs / f"{file_san}.{phase}.log"
         write_text(log_file, output)
         parsed = _parse(output, sby_mode)
@@ -272,7 +305,7 @@ def run_property(harness: dict[str, Any], prop: dict[str, Any], cfg: dict[str, A
     if bmc.get("timed_out") or bmc["result"] == "timeout":
         result["status"] = "TIMEOUT"
         result["error"] = f"BMC timed out after {actual_timeout}s"
-        result["counterexample"] = _counterexample(bmc.get("output") or "")
+        result["counterexample"] = _counterexample(bmc.get("output") or "", build)
         return result
     if bmc["result"] == "error":
         result["status"] = "ERROR"
@@ -285,7 +318,7 @@ def run_property(harness: dict[str, Any], prop: dict[str, Any], cfg: dict[str, A
 
     if cover:
         reachable = bmc["result"] == "pass"
-        result["counterexample"] = _counterexample(bmc.get("output") or "")
+        result["counterexample"] = _counterexample(bmc.get("output") or "", build)
         result["status"] = (("COVERED" if mode == "cover" else "ASSUMED")
                             if reachable else
                             ("NOT_REACHED_WITHIN_BOUND" if mode == "cover" else "VACUOUS"))
@@ -298,7 +331,7 @@ def run_property(harness: dict[str, Any], prop: dict[str, Any], cfg: dict[str, A
 
     if bmc["result"] == "fail":
         result["status"] = "FAIL"
-        result["counterexample"] = _counterexample(bmc.get("output") or "")
+        result["counterexample"] = _counterexample(bmc.get("output") or "", build)
         result["error"] = bmc.get("line") or "sby found a counterexample"
         return result
 
@@ -327,6 +360,8 @@ def run_property(harness: dict[str, Any], prop: dict[str, Any], cfg: dict[str, A
     else:
         result["induction"]["reason"] = (induct.get("line")
                                           or "induction did not prove the property")
+        if induct["result"] == "fail" and not result["counterexample"]:
+            result["counterexample"] = _counterexample(induct.get("output") or "", build)
     if not quiet:
         eprint(f"[{pid}] {result['status']} ({result['elapsed_s']}s)")
     return result

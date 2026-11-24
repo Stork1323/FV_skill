@@ -172,6 +172,18 @@ def _cmd_run(args: argparse.Namespace) -> int:
     return 0 if results["summary"]["overall"] == "PASS" else 1
 
 
+
+def _cmd_structural(args: argparse.Namespace) -> int:
+    from fv_structural import run as structural_run
+    manifest = load_manifest(args.design)
+    res = structural_run(manifest)
+    if args.json:
+        print(json.dumps(res, indent=2))
+    else:
+        print(f"structural: {res.get('overall')}")
+        for c in res.get('checks') or []:
+            print(f"  [{c.get('status')}] {c.get('id')}: {c.get('message')}")
+    return 0 if res.get('overall') == 'PASS' else 1
 def _cmd_review(args: argparse.Namespace) -> int:
     from fv_pipeline import record
     from fv_review import review, write_review
@@ -192,14 +204,44 @@ def _cmd_review(args: argparse.Namespace) -> int:
     return 0 if doc["overall"] != "ACTION_REQUIRED" else 1
 
 
+
+
+def _cmd_matrix(args: argparse.Namespace) -> int:
+    from fv_matrix import report
+    manifest = load_manifest(args.design)
+    res = report(manifest)
+    if args.json:
+        print(json.dumps(res, indent=2))
+    else:
+        print(f"config_matrix: {res.get('overall')}  declared={res.get('declared_configurations')}")
+    return 0 if res.get('overall') in ('PASS','NO_CONFIGS') else 1
+def _cmd_replay(args: argparse.Namespace) -> int:
+    from fv_replay import replay_property
+
+    manifest = load_manifest(args.design)
+    res = replay_property(manifest, args.property, timeout_s=args.timeout)
+    if args.json:
+        print(json.dumps(res, indent=2))
+    else:
+        print(f"replay: {res.get('status')}  property={res.get('id')}")
+        if res.get('reason'):
+            print(f"reason: {res['reason']}")
+        if res.get('output'):
+            print(res['output'][-1000:])
+    return 0 if res.get('status') in ('REPLAYED_FAIL', 'SKIPPED') else 1
 def _cmd_report(args: argparse.Namespace) -> int:
-    from fv_run import write_artifacts
+    from fv_run import check_results_binding, write_artifacts
 
     manifest = load_manifest(args.design)
     path = Path(args.results) if args.results else Path(manifest["_paths"]["results"])
     if not path.is_file():
         raise FvError(f"results not found: {path}\nrun `fv.py run --design ...` first")
     results = read_json(path)
+    binding_errors = check_results_binding(results, manifest)
+    if binding_errors and not args.allow_stale:
+        raise FvError("stale or incomplete results:\n" + "\n".join(f"  {e}" for e in binding_errors))
+    if binding_errors:
+        eprint("warning: stale or incomplete results:\n" + "\n".join(f"  {e}" for e in binding_errors))
     write_artifacts(manifest, results)
     root = project_root(manifest)
     reports = Path(manifest["_paths"]["reports"])
@@ -333,6 +375,7 @@ def _cmd_all(args: argparse.Namespace) -> int:
         force=args.force,
         strict=args.strict,
         allow_review_errors=args.allow_review_errors,
+        allow_unreviewed_extraction=getattr(args, "allow_unreviewed_extraction", False),
         quiet=args.quiet,
         backend=args.backend,
     )
@@ -459,6 +502,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--quiet", action="store_true")
     p.set_defaults(func=_cmd_run)
 
+
+    p = sub.add_parser("structural", help="run structural/elaboration/connectivity checks")
+    p.add_argument("--design", required=True)
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(func=_cmd_structural)
     p = sub.add_parser("review", help="review SVA and constraints after a run")
     p.add_argument("--design", required=True)
     p.add_argument("--contract")
@@ -489,9 +537,23 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--json", action="store_true")
     p.set_defaults(func=_cmd_status)
 
+
+
+    p = sub.add_parser("matrix", help="report configuration matrix coverage")
+    p.add_argument("--design", required=True)
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(func=_cmd_matrix)
+    p = sub.add_parser("replay", help="replay a failing counterexample with iverilog (best effort)")
+    p.add_argument("--design", required=True)
+    p.add_argument("--property", required=True)
+    p.add_argument("--timeout", type=int, default=60)
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(func=_cmd_replay)
     p = sub.add_parser("report", help="rebuild reports from existing results")
     p.add_argument("--design", required=True)
     p.add_argument("--results")
+    p.add_argument("--allow-stale", action="store_true",
+                   help="allow rebuilding reports from stale/incomplete results")
     p.set_defaults(func=_cmd_report)
 
     p = sub.add_parser("regress", help="compare with the committed baseline")
@@ -506,6 +568,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--force", action="store_true", help="allow a failing baseline update")
     p.add_argument("--allow-review-errors", action="store_true",
                    help="record a baseline despite a review requiring action")
+    p.add_argument("--allow-unreviewed-extraction", action="store_true",
+                   help="allow pipeline to proceed without human extraction approval (non-signoff)")
     p.add_argument("--depth", type=int)
     p.add_argument("--timeout", type=int)
     p.add_argument("--jobs", type=int)
@@ -542,6 +606,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--no-regress", action="store_true")
     p.add_argument("--update-baseline", action="store_true")
     p.add_argument("--allow-review-errors", action="store_true")
+    p.add_argument("--allow-unreviewed-extraction", action="store_true")
     p.add_argument("--force", action="store_true")
     p.add_argument("--strict", action="store_true")
     p.add_argument("--quiet", action="store_true")

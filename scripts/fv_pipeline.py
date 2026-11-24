@@ -206,8 +206,8 @@ def run(manifest: dict[str, Any], *, contract: str | Path | None = None,
         jobs: int | None = None, induction: bool | None = None,
         baseline: str | Path | None = None, update_baseline: bool = False,
         no_regress: bool = False, force: bool = False, strict: bool = False,
-        allow_review_errors: bool = False, quiet: bool = False,
-        backend: str | None = None) -> dict[str, Any]:
+        allow_review_errors: bool = False, allow_unreviewed_extraction: bool = False,
+        quiet: bool = False, backend: str | None = None) -> dict[str, Any]:
     """Execute the ordered pipeline and record every step.
 
     The order is fixed: rules -> extract -> contract -> render -> run ->
@@ -215,7 +215,7 @@ def run(manifest: dict[str, Any], *, contract: str | Path | None = None,
     except that a verification failure still runs the review and regression so
     the report is complete.
     """
-    from fv_common import FvError
+    from fv_common import FvError, project_root, read_json
     from fv_bundle import prepare
     from fv_contract import validate_design
     from fv_extract import extract as extract_spec
@@ -264,6 +264,24 @@ def run(manifest: dict[str, Any], *, contract: str | Path | None = None,
             "open; answer them in formal/spec/answers.json or mark them non-blocking",
             {"questions": questions.get("artifacts") or {}})
 
+    # P3: human gate for spec-extraction review.
+    if not allow_unreviewed_extraction:
+        approval_path = Path(manifest["_paths"].get("spec_dir", project_root(manifest) / "formal" / "spec")) / "extraction_approval.json"
+        approved = False
+        if approval_path.is_file():
+            try:
+                approval = read_json(approval_path)
+                approved = bool(isinstance(approval, dict) and approval.get("approved") is True)
+            except FvError:
+                approved = False
+        if not approved:
+            return _fail(
+                manifest, "extract",
+                "extraction requires human approval; create formal/spec/extraction_approval.json "
+                "with {\"approved\": true, \"reviewer\": ..., \"reviewed_at\": ...} "
+                "or pass --allow-unreviewed-extraction for a non-signoff run",
+                {"approval_path": str(approval_path)})
+
     # -- contract -----------------------------------------------------------------------------
     if not quiet:
         print("pipeline: contract")
@@ -284,6 +302,17 @@ def run(manifest: dict[str, Any], *, contract: str | Path | None = None,
         "warnings": len(validation.warnings),
         "stats": validation.stats,
     })
+
+    # -- structural ---------------------------------------------------------------------------
+    try:
+        from fv_structural import run as structural_run
+        structural = structural_run(manifest)
+        if structural.get("overall") not in ("PASS", "WARN"):
+            return _fail(manifest, "contract", "structural checks failed",
+                         {"structural": structural.get("artifacts")})
+    except Exception as exc:
+        # Structural checks are best-effort if environment lacks tools.
+        pass
 
     # -- render -------------------------------------------------------------------------------
     if not quiet:
@@ -369,12 +398,29 @@ def run(manifest: dict[str, Any], *, contract: str | Path | None = None,
                status="ok" if regress_doc.get("overall") in ("PASS", "WARN") else "failed",
                extra={"overall": regress_doc.get("overall")})
 
+    if regress_doc is not None:
+        results["regression"] = {
+            "overall": regress_doc.get("overall"),
+            "summary": regress_doc.get("summary"),
+            "artifacts": regress_doc.get("artifacts"),
+        }
+    from fv_run import compute_signoff, write_artifacts
+
+    results["signoff"] = compute_signoff(results, manifest, regress_doc,
+                                         allow_review_errors=allow_review_errors)
+    write_artifacts(manifest, results)
+
     verification = results["summary"]["overall"]
     overall = "PASS"
     if verification != "PASS" or review_error:
         overall = "FAIL"
     if regress_doc is not None and regress_doc.get("overall") not in ("PASS", "WARN"):
         overall = "FAIL"
+    if not results.get("signoff", {}).get("signoff_ready", True):
+        # Signoff is stricter than verification pass/fail; do not mask it.
+        if verification == "PASS" and not review_error and (
+                regress_doc is None or regress_doc.get("overall") in ("PASS", "WARN")):
+            overall = "FAIL"
     return {
         "overall": overall,
         "verification": verification,

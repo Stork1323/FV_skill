@@ -182,13 +182,12 @@ def _quote_check(spec_text: str, quote: str, source: str) -> bool:
     if not needle:
         return False
     start, end = _source_lines(source)
-    if start and end:
-        lines = spec_text.splitlines()
-        if start <= len(lines):
-            selected = "\n".join(lines[start - 1:min(end, len(lines))])
-            if needle in normalize_text(selected):
-                return True
-    return needle in normalize_text(spec_text)
+    lines = spec_text.splitlines()
+    if start and end and start <= len(lines):
+        selected = "\n".join(lines[start - 1:min(end, len(lines))])
+        return needle in normalize_text(selected)
+    # No valid source range: strict mode requires a declared range.
+    return False
 
 
 def _find_quote(spec_text: str, requirement: str) -> tuple[str, int | None, int | None, bool]:
@@ -406,7 +405,7 @@ def parse(manifest: dict[str, Any], text: str | None = None,
                 f"extraction Markdown not found: {file_path}\n"
                 "run `fv.py extract --design ...` to create it"
             )
-        text = file_path.read_text()
+        text = file_path.read_text(encoding="utf-8")
     meta, body = _front_matter(text)
     # HTML comments hold the scaffold instructions, including example
     # requirement headings.  They must not become requirements.
@@ -415,7 +414,7 @@ def parse(manifest: dict[str, Any], text: str | None = None,
     spec_path = resolve_path(root, meta.get("spec") or spec.get("markdown") or "spec/spec.md")
     if not spec_path.is_file():
         raise FvError(f"spec Markdown not found: {spec_path}")
-    spec_text = spec_path.read_text()
+    spec_text = spec_path.read_text(encoding="utf-8")
     current_spec_hash = sha256_file(spec_path)
     recorded_spec_hash = str(meta.get("spec_sha256") or "").strip()
     features, _ = _feature_section(body)
@@ -487,7 +486,7 @@ def parse(manifest: dict[str, Any], text: str | None = None,
         if evidence:
             if not _quote_check(spec_text, evidence, source):
                 message = f"{rid}: evidence quote is not verbatim in the spec or its source range"
-                (warnings if clarity != "clear" else errors).append(message)
+                errors.append(message)
         if "TODO" in statement or "TODO" in evidence:
             errors.append(f"{rid}: contains a TODO marker")
         requirements.append({
@@ -585,7 +584,7 @@ def update_spec_hash(manifest: dict[str, Any]) -> dict[str, Any]:
             f"extraction Markdown not found: {md_path}\n"
             "run `fv.py extract --design ...` to create the scaffold first"
         )
-    text = md_path.read_text()
+    text = md_path.read_text(encoding="utf-8")
     meta, _ = _front_matter(text)
     spec = manifest.get("spec") or {}
     spec_path = resolve_path(root, meta.get("spec") or spec.get("markdown") or "spec/spec.md")
@@ -651,13 +650,13 @@ def extract(manifest: dict[str, Any], force: bool = False,
             structured = read_json(structured_path)
             config_path = resolve_path(root, spec["config"]) if spec.get("config") else None
             config = read_json(config_path) if config_path and config_path.is_file() else {}
-            spec_text = markdown_path.read_text()
+            spec_text = markdown_path.read_text(encoding="utf-8")
             features = _features_from_structured(structured, config, spec_text)
             requirements = _structured_requirements(structured, config, features, spec_text)
             text = _markdown(manifest, features, requirements,
                              rel_to(root, markdown_path), sha256_file(markdown_path))
         else:
-            features, requirements, note = _spec_only_scaffold(markdown_path.read_text())
+            features, requirements, note = _spec_only_scaffold(markdown_path.read_text(encoding="utf-8"))
             text = _markdown(manifest, features, requirements,
                              rel_to(root, markdown_path), sha256_file(markdown_path))
             marker = "## Requirements\n\n"

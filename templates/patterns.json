@@ -67,7 +67,7 @@
         "title": "An increment below the maximum adds exactly one",
         "kind": "next",
         "role": "assert",
-        "trigger": "i_inc && q != (WIDTH - 1)",
+        "trigger": "i_inc && q != ((1 << WIDTH) - 1)",
         "expr": "q == prev(q) + 1",
         "severity": "error",
         "tags": ["counting"],
@@ -432,7 +432,7 @@
         "title": "An increment at the maximum wraps to zero",
         "kind": "next",
         "role": "assert",
-        "trigger": "i_inc && q == (WIDTH - 1)",
+        "trigger": "i_inc && q == ((1 << WIDTH) - 1)",
         "expr": "q == 0",
         "severity": "error",
         "evidence": {"section": "5.2 Counting", "quote": "When i_inc is 1 and q is 15, q shall wrap to 0 on the next rising edge of i_clk."}

@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0",
-  "updated_at": "2026-11-21T01:38:42+00:00",
+  "updated_at": "2026-11-24T10:19:52+00:00",
   "steps": {
     "extract": {
       "status": "ok",
-      "timestamp": "2026-11-21T01:38:42+00:00",
+      "timestamp": "2026-11-24T10:19:51+00:00",
       "inputs": {
         "spec_markdown": {
           "path": "/Users/nguyendactam/Working/Formal_verification/skills/formal-sva/examples/counter/spec/spec.md",
@@ -20,7 +20,7 @@
           "path": "/Users/nguyendactam/Working/Formal_verification/skills/formal-sva/examples/counter/formal/rules",
           "kind": "dir",
           "files": 9,
-          "sha256": "546b07f5194ff5b51f2035d79b49e656309f59a2e20b11e05dceec909de6004d"
+          "sha256": "8f7d840c83b0ddfb14d1c9320d8f4cd8c71aba7e31c9ec5a86796e1db8dfe401"
         }
       },
       "outputs": {
@@ -32,19 +32,19 @@
         "extraction": {
           "path": "/Users/nguyendactam/Working/Formal_verification/skills/formal-sva/examples/counter/formal/spec/requirements.json",
           "exists": true,
-          "sha256": "7350a7b0b4c26c969b448a98bd2cf02fe47904bf781140af03c54db97c30d1c7"
+          "sha256": "ef80850c0c8aa791f9b60127f7e3237f2dbc61bf0040f4cc28b74914af892c37"
         },
         "questions": {
           "path": "/Users/nguyendactam/Working/Formal_verification/skills/formal-sva/examples/counter/formal/reports/questions.json",
           "exists": true,
-          "sha256": "097b26d8463d0126d00a55d1fee01c4598e3700714f60d916f6a7eead41bb23e"
+          "sha256": "296e4374c15aa7a8c5d54666d2c04e3454e96486809c7392f9d02cdee2c5c0c1"
         }
       },
       "extra": {}
     },
     "contract": {
       "status": "ok",
-      "timestamp": "2026-11-21T01:38:42+00:00",
+      "timestamp": "2026-11-24T10:19:51+00:00",
       "inputs": {
         "requirements": {
           "path": "/Users/nguyendactam/Working/Formal_verification/skills/formal-sva/examples/counter/formal/spec/requirements.md",
@@ -54,12 +54,12 @@
         "extraction": {
           "path": "/Users/nguyendactam/Working/Formal_verification/skills/formal-sva/examples/counter/formal/spec/requirements.json",
           "exists": true,
-          "sha256": "7350a7b0b4c26c969b448a98bd2cf02fe47904bf781140af03c54db97c30d1c7"
+          "sha256": "ef80850c0c8aa791f9b60127f7e3237f2dbc61bf0040f4cc28b74914af892c37"
         },
         "bundle": {
           "path": "/Users/nguyendactam/Working/Formal_verification/skills/formal-sva/examples/counter/formal/schemas/input_bundle.json",
           "exists": true,
-          "sha256": "a4f057e16167f89a83ec649c52664e268db4819e73a4ff20343b2d7de88a4e4d"
+          "sha256": "2d84d2acb4e798c17eb28ce0476f5094a27273ea12a484fd709ad8b434ad7a6d"
         },
         "contract": {
           "path": "/Users/nguyendactam/Working/Formal_verification/skills/formal-sva/examples/counter/formal/schemas/formal_contract.json",
@@ -70,7 +70,7 @@
           "path": "/Users/nguyendactam/Working/Formal_verification/skills/formal-sva/examples/counter/formal/rules",
           "kind": "dir",
           "files": 9,
-          "sha256": "546b07f5194ff5b51f2035d79b49e656309f59a2e20b11e05dceec909de6004d"
+          "sha256": "8f7d840c83b0ddfb14d1c9320d8f4cd8c71aba7e31c9ec5a86796e1db8dfe401"
         }
       },
       "outputs": {
@@ -81,7 +81,7 @@
         }
       },
       "extra": {
-        "warnings": 0,
+        "warnings": 1,
         "stats": {
           "requirements": 7,
           "features": 2,
@@ -89,12 +89,25 @@
           "assertions": 4,
           "assumptions": 0,
           "covers": 1,
+          "obligations": {
+            "bounded_response": 0,
+            "environment": 0,
+            "liveness": 0,
+            "reachability": 1,
+            "safety": 4,
+            "structural": 0
+          },
+          "owners": {
+            "dut": 4,
+            "environment": 0,
+            "verification": 1
+          },
           "dispositions": {
+            "partially_formalized": 0,
             "out_of_scope": 0,
             "formalized": 5,
-            "partially_formalized": 0,
-            "not_formalizable": 2,
-            "assumption": 0
+            "assumption": 0,
+            "not_formalizable": 2
           },
           "clarity": {
             "clear": 7,
@@ -103,6 +116,7 @@
           "parameters": {
             "WIDTH": 4
           },
+          "configurations": 1,
           "reset_cycles": 2,
           "depth": 8
         }
@@ -110,7 +124,7 @@
     },
     "render": {
       "status": "ok",
-      "timestamp": "2026-11-21T01:38:42+00:00",
+      "timestamp": "2026-11-24T10:19:51+00:00",
       "inputs": {
         "contract": {
           "path": "/Users/nguyendactam/Working/Formal_verification/skills/formal-sva/examples/counter/formal/schemas/formal_contract.json",
@@ -120,7 +134,7 @@
         "bundle": {
           "path": "/Users/nguyendactam/Working/Formal_verification/skills/formal-sva/examples/counter/formal/schemas/input_bundle.json",
           "exists": true,
-          "sha256": "a4f057e16167f89a83ec649c52664e268db4819e73a4ff20343b2d7de88a4e4d"
+          "sha256": "2d84d2acb4e798c17eb28ce0476f5094a27273ea12a484fd709ad8b434ad7a6d"
         },
         "requirements": {
           "path": "/Users/nguyendactam/Working/Formal_verification/skills/formal-sva/examples/counter/formal/spec/requirements.md",
@@ -131,7 +145,7 @@
           "path": "/Users/nguyendactam/Working/Formal_verification/skills/formal-sva/examples/counter/formal/rules",
           "kind": "dir",
           "files": 9,
-          "sha256": "546b07f5194ff5b51f2035d79b49e656309f59a2e20b11e05dceec909de6004d"
+          "sha256": "8f7d840c83b0ddfb14d1c9320d8f4cd8c71aba7e31c9ec5a86796e1db8dfe401"
         },
         "tools": {
           "path": "/Users/nguyendactam/Working/Formal_verification/skills/formal-sva/examples/counter/formal/tools.json",
@@ -144,19 +158,19 @@
           "path": "/Users/nguyendactam/Working/Formal_verification/skills/formal-sva/examples/counter/formal/src",
           "kind": "dir",
           "files": 12,
-          "sha256": "282ca88bbe0280e7daeb1148b1a4ffe7ddf99ccf92c841ec57921c83b9fa85bf"
+          "sha256": "815cf1b3b7d710df8126b78b95943c93a34c77b7952c6e7778aed61edfc7c27a"
         }
       },
       "extra": {}
     },
     "run": {
       "status": "ok",
-      "timestamp": "2026-11-21T01:38:42+00:00",
+      "timestamp": "2026-11-24T10:19:52+00:00",
       "inputs": {
         "bundle": {
           "path": "/Users/nguyendactam/Working/Formal_verification/skills/formal-sva/examples/counter/formal/schemas/input_bundle.json",
           "exists": true,
-          "sha256": "a4f057e16167f89a83ec649c52664e268db4819e73a4ff20343b2d7de88a4e4d"
+          "sha256": "2d84d2acb4e798c17eb28ce0476f5094a27273ea12a484fd709ad8b434ad7a6d"
         },
         "contract": {
           "path": "/Users/nguyendactam/Working/Formal_verification/skills/formal-sva/examples/counter/formal/schemas/formal_contract.json",
@@ -167,7 +181,7 @@
           "path": "/Users/nguyendactam/Working/Formal_verification/skills/formal-sva/examples/counter/formal/rules",
           "kind": "dir",
           "files": 9,
-          "sha256": "546b07f5194ff5b51f2035d79b49e656309f59a2e20b11e05dceec909de6004d"
+          "sha256": "8f7d840c83b0ddfb14d1c9320d8f4cd8c71aba7e31c9ec5a86796e1db8dfe401"
         },
         "tools": {
           "path": "/Users/nguyendactam/Working/Formal_verification/skills/formal-sva/examples/counter/formal/tools.json",
@@ -179,13 +193,13 @@
         "results": {
           "path": "/Users/nguyendactam/Working/Formal_verification/skills/formal-sva/examples/counter/formal/results/formal_results.json",
           "exists": true,
-          "sha256": "8839d8e864b70226e6919a086a2a066695d4c04a5377a0a1d60ecdc64d2174ee"
+          "sha256": "bf38e54bee29bea35571be543fc1ed8dce0b8aa6b386877da6a38c55120c7a1b"
         },
         "reports": {
           "path": "/Users/nguyendactam/Working/Formal_verification/skills/formal-sva/examples/counter/formal/reports",
           "kind": "dir",
-          "files": 18,
-          "sha256": "7369673fddbf9835dd9a23bb32886b70b1d3e684c9a9ded5401a422e58e1970f"
+          "files": 22,
+          "sha256": "bfe8f54d4ca92d1bd3ce3de0fb175b4667a7e0beb41d78f428f07295d2e98608"
         }
       },
       "extra": {
@@ -196,10 +210,12 @@
           "proven": 3,
           "bmc_pass": 1,
           "covered": 1,
+          "not_reached_within_bound": 0,
           "unreachable": 0,
           "assumed": 0,
           "vacuous": 0,
           "partial": 0,
+          "incomplete_obligations": 0,
           "fail": 0,
           "error": 0,
           "timeout": 0,
@@ -213,12 +229,12 @@
     },
     "review": {
       "status": "ok",
-      "timestamp": "2026-11-21T01:38:42+00:00",
+      "timestamp": "2026-11-24T10:19:52+00:00",
       "inputs": {
         "results": {
           "path": "/Users/nguyendactam/Working/Formal_verification/skills/formal-sva/examples/counter/formal/results/formal_results.json",
           "exists": true,
-          "sha256": "e64f35201e4beb1904a09ec9ce6fff0fcadf606ef17163452b1e962445037d3c"
+          "sha256": "548c237ea1894d87e2427e17179eab7c2a42e177da50eaa46b3561419bc0a6da"
         },
         "contract": {
           "path": "/Users/nguyendactam/Working/Formal_verification/skills/formal-sva/examples/counter/formal/schemas/formal_contract.json",
@@ -230,7 +246,7 @@
         "review": {
           "path": "/Users/nguyendactam/Working/Formal_verification/skills/formal-sva/examples/counter/formal/reports/sva_review.json",
           "exists": true,
-          "sha256": "f4e21958bda5a50c2d643e90f99005c622f3719aeb0602d580cf7206357fa090"
+          "sha256": "7da08f673e7100caeb231df93f426d5d22f88df6d61d00ba9d37fca220fe81cf"
         }
       },
       "extra": {
@@ -248,12 +264,12 @@
     },
     "regress": {
       "status": "ok",
-      "timestamp": "2026-11-21T01:38:42+00:00",
+      "timestamp": "2026-11-24T10:19:52+00:00",
       "inputs": {
         "results": {
           "path": "/Users/nguyendactam/Working/Formal_verification/skills/formal-sva/examples/counter/formal/results/formal_results.json",
           "exists": true,
-          "sha256": "e64f35201e4beb1904a09ec9ce6fff0fcadf606ef17163452b1e962445037d3c"
+          "sha256": "548c237ea1894d87e2427e17179eab7c2a42e177da50eaa46b3561419bc0a6da"
         },
         "contract": {
           "path": "/Users/nguyendactam/Working/Formal_verification/skills/formal-sva/examples/counter/formal/schemas/formal_contract.json",
@@ -265,8 +281,8 @@
         "reports": {
           "path": "/Users/nguyendactam/Working/Formal_verification/skills/formal-sva/examples/counter/formal/reports",
           "kind": "dir",
-          "files": 18,
-          "sha256": "637b5dd35457cc071f4f80a44a896a75717d92b39adb2484b8594eaae11ea674"
+          "files": 22,
+          "sha256": "8e89839d92dcff3cb23f1d014901ed90dcf6eaed51b453dd7001c1d089ade8c9"
         }
       },
       "extra": {
@@ -275,7 +291,7 @@
     },
     "rules": {
       "status": "ok",
-      "timestamp": "2026-11-21T01:38:42+00:00",
+      "timestamp": "2026-11-24T10:19:51+00:00",
       "inputs": {
         "spec_markdown": {
           "path": "/Users/nguyendactam/Working/Formal_verification/skills/formal-sva/examples/counter/spec/spec.md",
@@ -298,11 +314,11 @@
           "path": "/Users/nguyendactam/Working/Formal_verification/skills/formal-sva/examples/counter/formal/rules",
           "kind": "dir",
           "files": 9,
-          "sha256": "546b07f5194ff5b51f2035d79b49e656309f59a2e20b11e05dceec909de6004d"
+          "sha256": "8f7d840c83b0ddfb14d1c9320d8f4cd8c71aba7e31c9ec5a86796e1db8dfe401"
         }
       },
       "extra": {
-        "rules_sha256": "cfa45edf127def95092ef774c6923d44528a9e755b06f2d4e502e0ee4c0591dc",
+        "rules_sha256": "fdaf3dc78ee66abd65ab28ec92ddf779c60fc04ac2788047595a801b1dce32c9",
         "files": 8
       }
     }

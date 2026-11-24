@@ -377,6 +377,7 @@ def parse_port_decls(port_text: str) -> list[dict[str, Any]]:
             continue  # non-ANSI or continuation; Yosys remains authoritative
         direction = m.group(1)
         rest = item[m.end():].strip()
+        signed = bool(re.search(r"\bsigned\b", rest))
         # Drop a default value (not used by Q3TUI RTL) and unpacked dimensions
         # after the name are recorded but not used for the monitor declaration.
         idents, brackets = _scan_identifiers_and_brackets(rest)
@@ -388,6 +389,7 @@ def parse_port_decls(port_text: str) -> list[dict[str, Any]]:
         out.append({
             "name": name,
             "direction": direction,
+            "signed": signed,
             "dims_src": [b[2] for b in packed],
             "unpacked_dims": [b[2] for b in unpacked],
             "source": item,
@@ -439,7 +441,7 @@ def _find_top_source(sources: list[Path], top: str) -> Path:
     pattern = re.compile(r"\bmodule\s+" + re.escape(top) + r"\b")
     for path in sources:
         try:
-            if pattern.search(strip_comments(path.read_text())):
+            if pattern.search(strip_comments(path.read_text(encoding="utf-8"))):
                 return path
         except OSError:
             continue
@@ -500,7 +502,7 @@ def extract_interface(manifest: dict[str, Any], out_json: Path | None = None) ->
     if not src["sources"]:
         raise FvError("design manifest has no RTL sources")
     top_source = _find_top_source(src["sources"], top)
-    text = strip_comments(top_source.read_text())
+    text = strip_comments(top_source.read_text(encoding="utf-8"))
     params_text, ports_text, body_text = module_header(text, top)
 
     parsed_params = parse_param_decls(params_text) + parse_body_param_decls(body_text)
@@ -579,6 +581,7 @@ def extract_interface(manifest: dict[str, Any], out_json: Path | None = None) ->
                 ports.append({
                     "name": name,
                     "direction": yp.get("direction", srcp["direction"]),
+                    "signed": bool(srcp.get("signed") or yp.get("signed")),
                     "width": flat_width,
                     "dims": dims,
                     "ndims": len(dims),
@@ -593,6 +596,7 @@ def extract_interface(manifest: dict[str, Any], out_json: Path | None = None) ->
                 ports.append({
                     "name": name,
                     "direction": yp.get("direction", srcp["direction"]),
+                    "signed": bool(srcp.get("signed") or yp.get("signed")),
                     "width": flat_width,
                     "dims": [f"[{flat_width - 1}:0]"] if flat_width > 1 else [],
                     "ndims": 1 if flat_width > 1 else 0,
@@ -604,6 +608,7 @@ def extract_interface(manifest: dict[str, Any], out_json: Path | None = None) ->
         ports.append({
             "name": name,
             "direction": yp.get("direction", "input"),
+            "signed": bool(yp.get("signed")),
             "width": flat_width,
             "dims": [f"[{flat_width - 1}:0]"] if flat_width > 1 else [],
             "ndims": 1 if flat_width > 1 else 0,

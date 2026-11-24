@@ -382,6 +382,9 @@ class CounterIntegrationTests(unittest.TestCase):
         for path in paths:
             with self.subTest(path=path.name):
                 self.assertNotIn("WIDTH", path.read_text())
+        # Restore original harness so later tests in this class see a consistent state.
+        rc, out, err = _run_cli("render", "--design", str(self.design))
+        self.assertEqual(rc, 0, out + err)
 
     def test_regression_against_committed_baseline(self) -> None:
         rc, out, err = _run_cli("regress", "--design", str(self.design))
@@ -1102,6 +1105,8 @@ class SpecOnlyIntegrationTests(unittest.TestCase):
             self.assertEqual(rc, 0, out + err)
             shutil.copy(COUNTER / "formal" / "spec" / "requirements.md",
                         formal / "spec" / "requirements.md")
+            shutil.copy(COUNTER / "formal" / "spec" / "extraction_approval.json",
+                        formal / "spec" / "extraction_approval.json")
             shutil.copy(COUNTER / "formal" / "schemas" / "formal_contract.json",
                         formal / "schemas" / "formal_contract.json")
             shutil.copy(COUNTER / "formal" / "regression" / "baseline.json",

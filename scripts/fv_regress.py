@@ -16,6 +16,7 @@ is passed, so a broken build cannot silently become the reference.
 from __future__ import annotations
 
 import json
+import re
 import time
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
@@ -68,14 +69,17 @@ def _semantic_signature(x: dict[str, Any]) -> dict[str, Any]:
 def _status_table(items: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
     out: dict[str, dict[str, Any]] = {}
     for x in items:
+        semantic = x.get("semantic") if isinstance(x.get("semantic"), dict) else _semantic_signature(x)
         entry: dict[str, Any] = {
             "status": x.get("status"),
             "req": x.get("req"),
+            "semantic": semantic,
         }
-        for key in ("severity", "kind", "role", "obligation", "owner"):
+        for key in ("severity", "kind", "role", "obligation", "owner", "semantic_sha256", "run_id"):
             if x.get(key) is not None:
                 entry[key] = x[key]
-        entry["semantic"] = _semantic_signature(x)
+        if isinstance(x.get("artifact_hashes"), dict):
+            entry["assumption_set_sha256"] = x["artifact_hashes"].get("assumption_set_sha256")
         out[str(x.get("id"))] = entry
     return out
 
@@ -109,6 +113,64 @@ def results_path_for(manifest: dict[str, Any], explicit: str | Path | None = Non
     return Path(manifest["_paths"]["results"])
 
 
+_FALSEY_EXPR = {"0", "1'b0", "1'h0", "1'd0", "false"}
+
+
+def _norm_expr(value: Any) -> str:
+    return re.sub(r"\s+", "", str(value or "")).strip().lower()
+
+
+def _semantic_weakening(base: dict[str, Any], current: dict[str, Any]) -> str | None:
+    """Return a reason if current semantics are weaker/dangerous vs baseline."""
+    bsem = base.get("semantic") if isinstance(base.get("semantic"), dict) else {}
+    csem = current.get("semantic") if isinstance(current.get("semantic"), dict) else {}
+
+    def g(d: dict[str, Any], k: str, fallback: Any = None) -> Any:
+        return d.get(k, base.get(k, fallback) if d is bsem else current.get(k, fallback))
+
+    brole, crole = str(g(bsem, "role", "")), str(g(csem, "role", ""))
+    bobl, cobl = str(g(bsem, "obligation", "")), str(g(csem, "obligation", ""))
+    bkind, ckind = str(g(bsem, "kind", "")), str(g(csem, "kind", ""))
+
+    if bobl and not cobl:
+        return "obligation removed"
+    if bobl and cobl and bobl != cobl:
+        return f"obligation changed {bobl}->{cobl}"
+    if brole and crole and brole != crole:
+        return f"role changed {brole}->{crole}"
+    if bkind and ckind and bkind != ckind:
+        return f"kind changed {bkind}->{ckind}"
+
+    btrig = _norm_expr(g(bsem, "trigger"))
+    ctrig = _norm_expr(g(csem, "trigger"))
+    if btrig and ctrig in _FALSEY_EXPR:
+        return "trigger became false"
+    if btrig and not ctrig and str(g(csem, "kind")) in {"next", "bounded_response", "stability", "change"}:
+        return "trigger removed"
+
+    bresp = _norm_expr(g(bsem, "response") or g(bsem, "expr"))
+    cresp = _norm_expr(g(csem, "response") or g(csem, "expr"))
+    if bresp and cresp and bresp != cresp:
+        if cresp in {"1", "1'b1", "1'h1", "1'd1", "true"} and bresp not in {"1", "1'b1", "1'h1", "1'd1", "true"}:
+            return "consequent weakened to tautology"
+
+    if crole == "assume" and brole == "assume":
+        bwhen = _norm_expr(g(bsem, "when"))
+        cwhen = _norm_expr(g(csem, "when"))
+        if bresp != cresp or bwhen != cwhen:
+            return "assumption semantics changed"
+
+    if str(g(bsem, "kind")) == "bounded_response" and str(g(csem, "kind")) == "bounded_response":
+        try:
+            bmin, bmax = int(g(bsem, "min_delay", 0) or 0), int(g(bsem, "max_delay", 0) or 0)
+            cmin, cmax = int(g(csem, "min_delay", 0) or 0), int(g(csem, "max_delay", 0) or 0)
+            if cmin < bmin or cmax > bmax:
+                return "response window widened"
+        except Exception:
+            pass
+    return None
+
+
 def _change(base: dict[str, Any] | str | None,
             current: dict[str, Any] | str | None) -> str:
     # Backward compatibility: accept raw status strings.
@@ -126,32 +188,29 @@ def _change(base: dict[str, Any] | str | None,
     cstatus = current.get("status")
     bsem = base.get("semantic")
     csem = current.get("semantic")
-    # Legacy baselines have no semantic field; only compare explicit fields.
     legacy = "semantic" not in base
     if not isinstance(bsem, dict):
         bsem = {}
     if not isinstance(csem, dict):
         csem = {}
     semantic_changed = (bsem != csem) if not legacy else False
-    # A property that changed role/kind/obligation is not "unchanged" even if the
-    # raw status name looks equally good.  PROVEN(assert) -> COVERED(cover) is a
-    # regression because the obligation is weaker.  Skip comparison when the
-    # baseline predates the field (legacy baseline compatibility).
-    brole = str(bsem.get("role") or base.get("role") or "")
-    crole = str(csem.get("role") or current.get("role") or "")
-    bobl = str(bsem.get("obligation") or base.get("obligation") or "")
-    cobl = str(csem.get("obligation") or current.get("obligation") or "")
-    if brole and crole and brole != crole:
-        if status_rank(cstatus) <= status_rank(bstatus):
-            return "REGRESSION"
-    if bobl and cobl and bobl != cobl:
-        if status_rank(cstatus) <= status_rank(bstatus):
-            return "REGRESSION"
+    bsha = base.get("semantic_sha256")
+    csha = current.get("semantic_sha256")
+    if bsha and csha and bsha != csha:
+        semantic_changed = True
+    bash = base.get("assumption_set_sha256")
+    cash = current.get("assumption_set_sha256")
+    if bash and cash and bash != cash:
+        semantic_changed = True
+
+    weakening = None if legacy else _semantic_weakening(base, current)
+    if weakening:
+        return "REGRESSION"
+
     rb, rc = status_rank(bstatus), status_rank(cstatus)
     if rc > rb:
         return "REGRESSION"
     if rc < rb:
-        # Stronger status but different meaning: flag as changed, not silent improvement.
         return "CHANGED" if semantic_changed else "IMPROVEMENT"
     if semantic_changed:
         return "CHANGED"
@@ -441,6 +500,11 @@ def regress_design(manifest: dict[str, Any],
         run_all(manifest, Path(contract_path) if contract_path else None,
                 depth, timeout_s, jobs, quiet=quiet)
     results = _load_results(manifest, results_path)
+    from fv_run import check_results_binding
+    binding_errors = check_results_binding(results, manifest,
+                                           Path(contract_path) if contract_path else None)
+    if binding_errors:
+        raise FvError("stale or incomplete results:\n" + "\n".join(f"  {e}" for e in binding_errors))
     if not run and contract_path:
         # Without a run there is nothing to verify, so a different contract
         # would silently relabel results that came from another file.
@@ -477,6 +541,10 @@ def regress_design(manifest: dict[str, Any],
             (results.get("review") or {}).get("overall") == "ACTION_REQUIRED"
             and not allow_review_errors
         )
+        from fv_run import compute_signoff
+        signoff = compute_signoff(results, manifest, allow_review_errors=allow_review_errors)
+        signoff_blocked = (not signoff.get("strict_signoff_ready", True)
+                           and not force)
         if review_blocked:
             if report is None and baseline_exists:
                 report = compare(results, baseline)  # type: ignore[arg-type]
@@ -488,6 +556,21 @@ def regress_design(manifest: dict[str, Any],
                 "update_refused": (
                     "SVA/constraint review requires action; pass "
                     "--allow-review-errors for an explicit exception"),
+            })
+            if not quiet:
+                print(f"baseline: not updated ({doc['update_refused']})")
+            return doc
+        if signoff_blocked:
+            reasons = "; ".join(signoff.get("blocking_reasons") or ["signoff not ready"])
+            if report is None and baseline_exists:
+                report = compare(results, baseline)  # type: ignore[arg-type]
+                write_regression_artifacts(manifest, report)
+            doc = report or {}
+            doc.update({
+                "overall": "FAIL",
+                "baseline_updated": False,
+                "update_refused": f"strict signoff not ready: {reasons}",
+                "signoff": signoff,
             })
             if not quiet:
                 print(f"baseline: not updated ({doc['update_refused']})")
@@ -672,6 +755,8 @@ if __name__ == "__main__":
     ap.add_argument("--run", action="store_true")
     ap.add_argument("--update", action="store_true")
     ap.add_argument("--force", action="store_true")
+    ap.add_argument("--allow-review-errors", action="store_true",
+                    help="record a baseline despite a review requiring action")
     ap.add_argument("--depth", type=int)
     ap.add_argument("--timeout", type=int)
     ap.add_argument("--jobs", type=int)

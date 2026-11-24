@@ -521,8 +521,20 @@ def validate_contract(manifest: dict[str, Any], contract: dict[str, Any],
     reset_sig = (design.get("reset") or {}).get("signal")
     if clock_sig and clock_sig not in ports:
         r.error("DESIGN_CLOCK", "design.clock.signal", f"clock {clock_sig!r} is not a top-level port")
+    elif clock_sig:
+        p = ports[clock_sig]
+        if p.get("direction") != "input":
+            r.error("DESIGN_CLOCK", "design.clock.signal", f"clock {clock_sig!r} must be an input port")
+        if int(p.get("width") or 1) != 1:
+            r.error("DESIGN_CLOCK", "design.clock.signal", f"clock {clock_sig!r} must be 1-bit")
     if reset_sig and reset_sig not in ports:
         r.error("DESIGN_RESET", "design.reset.signal", f"reset {reset_sig!r} is not a top-level port")
+    elif reset_sig:
+        p = ports[reset_sig]
+        if p.get("direction") != "input":
+            r.error("DESIGN_RESET", "design.reset.signal", f"reset {reset_sig!r} must be an input port")
+        if int(p.get("width") or 1) != 1:
+            r.error("DESIGN_RESET", "design.reset.signal", f"reset {reset_sig!r} must be 1-bit")
 
     expected_params = dict(interface.get("parameters") or {})
     got_params = design.get("parameters") or {}
@@ -948,6 +960,7 @@ def validate_contract(manifest: dict[str, Any], contract: dict[str, Any],
                              or "reachable" in text_l or "reachability" in text_l)
         if disp in ("formalized", "partially_formalized"):
             has_assert = any(x == "assert" for x in roles)
+            prop_obls = [property_obligation(p) for p in plist]
             if not has_assert and not (disp == "formalized" and reachability_only):
                 r.error("REQ_NO_ASSERT", f"requirement {rid}",
                         f"disposition is {disp} but it has no assertion; a cover or "
@@ -961,6 +974,15 @@ def validate_contract(manifest: dict[str, Any], contract: dict[str, Any],
                 r.error("REQ_OWNERSHIP", f"requirement {rid}",
                         "owner is environment but the requirement has DUT assertions; "
                         "split environment rules from DUT guarantees")
+            declared_obls = req.get("obligations") or []
+            if "liveness" in declared_obls and disp == "formalized":
+                r.error("REQ_LIVENESS_DISCHARGE", f"requirement {rid}",
+                        "declared liveness obligation cannot be fully discharged by the "
+                        "supported safety/bounded checkers; mark partially_formalized and "
+                        "record the missing liveness argument")
+            if "safety" in declared_obls and prop_obls and all(o == "reachability" for o in prop_obls):
+                r.error("REQ_OBLIGATION_MISMATCH", f"requirement {rid}",
+                        "declared safety obligation cannot be discharged by reachability/cover properties alone")
         elif disp == "assumption":
             if "assume" not in roles:
                 r.error("REQ_NO_ASSUME", f"requirement {rid}",
@@ -1151,7 +1173,7 @@ def _check_evidence(ev: dict[str, Any], where: str, root: Path, bundle: dict[str
     spec_text = ""
     if spec_path:
         try:
-            spec_text = resolve_path(root, spec_path).read_text()
+            spec_text = resolve_path(root, spec_path).read_text(encoding="utf-8")
         except OSError:
             result.error("SPEC_MISSING", where, f"cannot read spec Markdown {spec_path}")
             return

@@ -1,0 +1,163 @@
+{
+  "good_reset": {
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "text": "While reset is low, q shall be 0.",
+        "disposition": "formalized",
+        "owner": "dut"
+      },
+      {
+        "id": "REQ-999",
+        "text": "Invented debug mode shall assert debug.",
+        "disposition": "formalized",
+        "owner": "dut"
+      }
+    ],
+    "properties": [
+      {
+        "id": "PRP-REQ-001-01",
+        "req": "REQ-001",
+        "kind": "always",
+        "role": "assert",
+        "expr": "q == 4'b0001",
+        "owner": "dut"
+      }
+    ]
+  },
+  "incorrect_assertion": {
+    "requirements": [
+      {
+        "id": "REQ-010",
+        "text": "When i_req is high, o_ack shall be high.",
+        "disposition": "formalized",
+        "owner": "dut"
+      }
+    ],
+    "properties": [
+      {
+        "id": "PRP-REQ-010-01",
+        "req": "REQ-010",
+        "kind": "always",
+        "role": "assert",
+        "expr": "o_ack || !i_req && 1",
+        "owner": "dut"
+      }
+    ]
+  },
+  "invented_requirement": {
+    "requirements": [
+      {
+        "id": "REQ-001",
+        "text": "While reset is low, q shall be 0.",
+        "disposition": "formalized",
+        "owner": "dut"
+      },
+      {
+        "id": "REQ-002",
+        "text": "Invented sleep pin shall gate clock.",
+        "disposition": "formalized",
+        "owner": "dut"
+      }
+    ],
+    "properties": [
+      {
+        "id": "PRP-REQ-001-01",
+        "req": "REQ-001",
+        "kind": "always",
+        "role": "assert",
+        "expr": "q == 4'b0001",
+        "owner": "dut"
+      }
+    ]
+  },
+  "missing_clause": {
+    "requirements": [
+      {
+        "id": "REQ-020",
+        "text": "After i_req, o_ack shall assert eventually.",
+        "disposition": "formalized",
+        "owner": "dut"
+      }
+    ],
+    "properties": [
+      {
+        "id": "PRP-REQ-020-01",
+        "req": "REQ-020",
+        "kind": "always",
+        "role": "assert",
+        "expr": "!i_req || o_ack",
+        "owner": "dut"
+      }
+    ]
+  },
+  "output_constraining_assumption": {
+    "requirements": [
+      {
+        "id": "REQ-030",
+        "text": "Environment shall keep req stable.",
+        "disposition": "assumption",
+        "owner": "environment"
+      }
+    ],
+    "properties": [
+      {
+        "id": "ASM-REQ-030-01",
+        "req": "REQ-030",
+        "kind": "always",
+        "role": "assume",
+        "expr": "o_ack == 1'b1",
+        "owner": "dut"
+      }
+    ]
+  },
+  "ambiguous_spec": {
+    "requirements": [
+      {
+        "id": "REQ-040",
+        "text": "The controller should respond quickly when possible.",
+        "disposition": "formalized",
+        "owner": "dut"
+      }
+    ],
+    "properties": [
+      {
+        "id": "PRP-REQ-040-01",
+        "req": "REQ-040",
+        "kind": "always",
+        "role": "assert",
+        "expr": "1'b1",
+        "owner": "dut"
+      }
+    ],
+    "notes": "fully proven"
+  },
+  "buggy_rtl_variant": {
+    "requirements": [
+      {
+        "id": "REQ-050",
+        "text": "o_ack must mirror i_req.",
+        "disposition": "formalized",
+        "owner": "dut"
+      }
+    ],
+    "properties": [
+      {
+        "id": "PRP-REQ-050-01",
+        "req": "REQ-050",
+        "kind": "always",
+        "role": "assert",
+        "expr": "o_ack == i_req",
+        "owner": "dut"
+      }
+    ],
+    "results": {
+      "properties": [
+        {
+          "id": "PRP-REQ-050-01",
+          "status": "PROVEN"
+        }
+      ]
+    }
+  }
+}
