@@ -562,10 +562,58 @@ def write_extraction_artifacts(manifest: dict[str, Any], doc: dict[str, Any]) ->
     write_json(paths["extraction"], doc)
     _write_questions_from_extraction(manifest, doc)
     root = project_root(manifest)
+    # Spec SVA leverage (P4): preserve any SVA present in spec for human/LLM review.
+    spec_sva = doc.get("spec_sva") or []
+    sva_json = paths["extraction"].parent / "spec_sva.json"
+    write_json(sva_json, {"schema_version": "1.0", "count": len(spec_sva), "items": spec_sva})
+    # Import candidates for contract writer / LLM - leverage spec SVA directly.
+    import_items = []
+    for i, item in enumerate(spec_sva, 1):
+        role = str(item.get("role") or "assert")
+        kind = str(item.get("suggested_kind") or ("cover" if role == "cover" else "always"))
+        pid = f"PRP-SPEC-SVA-{i:03d}"
+        import_items.append({
+            "id": pid,
+            "role": role,
+            "kind": kind,
+            "title": item.get("name") or f"Spec SVA {i}",
+            "source": "spec_sva",
+            "spec_line": item.get("line"),
+            "spec_text": item.get("text"),
+            "clock": item.get("clock") or "",
+            "clock_edge": item.get("clock_edge") or "",
+            "disable_iff": item.get("disable_iff") or "",
+            "expression_raw": item.get("expression") or "",
+            "needs_review": True,
+            "notes": "Imported from spec SVA; review semantics, map to requirement/evidence, and convert to formal contract subset before signoff.",
+        })
+    sva_import = paths["extraction"].parent / "spec_sva_import.json"
+    write_json(sva_import, {"schema_version": "1.0", "count": len(import_items), "items": import_items})
+
+    sva_md = paths["extraction"].parent / "spec_sva.md"
+    lines = ["# Spec SVA\n", "SVA/property snippets detected in the spec. Leverage these as authoritative intent, but review for conflicts with RTL/spec text.\n"]
+    if not spec_sva:
+        lines.append("_No SVA snippets detected in spec._\n")
+    else:
+        for i, item in enumerate(spec_sva, 1):
+            lines.append(f"## {i}. {item.get('type','sva')} {item.get('name','')}".rstrip())
+            lines.append(f"- line: {item.get('line')}")
+            lines.append(f"- role: {item.get('role')}")
+            lines.append(f"- suggested_kind: {item.get('suggested_kind')}")
+            if item.get('clock'): lines.append(f"- clock: {item.get('clock_edge')} {item.get('clock')}")
+            if item.get('disable_iff'): lines.append(f"- disable_iff: {item.get('disable_iff')}")
+            lines.append("```sv")
+            lines.append(str(item.get('text','')).rstrip())
+            lines.append("```")
+            lines.append("")
+    write_text(sva_md, "\n".join(lines).rstrip() + "\n")
     return {
         "extraction": rel_to(root, paths["extraction"]),
         "questions": rel_to(root, Path(manifest["_paths"]["reports"]) / "questions.md"),
+        "spec_sva": rel_to(root, sva_json),
+        "spec_sva_import": rel_to(root, sva_import),
     }
+
 
 
 def update_spec_hash(manifest: dict[str, Any]) -> dict[str, Any]:
@@ -632,6 +680,66 @@ def update_spec_hash(manifest: dict[str, Any]) -> dict[str, Any]:
             "previous": previous, "path": rel_to(root, md_path)}
 
 
+
+_SVA_BLOCK_RE = re.compile(
+    r"(?P<kind>assert|assume|cover)\s+property\s*(?:\(\s*@\([^)]+\)\s*(?P<body>.*?)\)\s*;|(?P<body2>.*?);)",
+    re.S | re.I,
+)
+_SVA_PROPERTY_RE = re.compile(r"\bproperty\s+(?P<name>\w+)\s*;(?P<body>.*?)endproperty\b", re.S | re.I)
+
+
+def extract_spec_sva(spec_text: str) -> list[dict[str, Any]]:
+    """Best-effort extraction of SVA snippets from spec text.
+
+    Leverages spec-authored SVA by capturing role/kind, clocking, disable iff,
+    expression, and a suggested contract mapping. This is intentionally
+    best-effort; humans/LLM must review before formal signoff.
+    """
+    found: list[dict[str, Any]] = []
+
+    def _mk(kind: str, name: str, text: str, line: int) -> dict[str, Any]:
+        txt = text.strip()
+        mclk = re.search(r"@\(\s*(posedge|negedge)\s+([^)]+)\)", txt, re.I)
+        clk_edge = mclk.group(1).lower() if mclk else ""
+        clk_sig = mclk.group(2).strip() if mclk else ""
+        mdis = re.search(r"disable\s+iff\s*\((.*?)\)\s*(.*)$", txt, re.S | re.I)
+        disable_iff = mdis.group(1).strip() if mdis else ""
+        body = mdis.group(2).strip() if mdis else txt
+        # strip outer property(...) wrapper
+        mprop = re.search(r"property\s*(?:\(\s*@\([^)]+\)\s*\))?\s*(.*?)(?:\)\s*;|;)\s*$", body, re.S | re.I)
+        expr = (mprop.group(1).strip() if mprop else body).rstrip(";").strip()
+        role = "assert" if kind in ("assert", "property") else ("assume" if kind == "assume" else "cover")
+        suggested_kind = "cover" if role == "cover" else "always"
+        if "|=>" in expr or "|->" in expr or "##" in expr:
+            suggested_kind = "response" if "##" in expr else "next"
+        return {
+            "type": kind,
+            "role": role,
+            "name": name or "",
+            "clock": clk_sig,
+            "clock_edge": clk_edge,
+            "disable_iff": disable_iff,
+            "expression": expr[:4000],
+            "suggested_kind": suggested_kind,
+            "text": txt[:4000],
+            "line": line,
+            "source": "spec_sva",
+            "needs_review": True,
+        }
+
+    for m in _SVA_PROPERTY_RE.finditer(spec_text):
+        found.append(_mk("property", m.group("name"), m.group(0), spec_text[:m.start()].count("\n") + 1))
+    for m in _SVA_BLOCK_RE.finditer(spec_text):
+        found.append(_mk(m.group("kind").lower(), "", m.group(0), spec_text[:m.start()].count("\n") + 1))
+    uniq = []
+    seen = set()
+    for x in found:
+        k = (x["line"], x.get("text", ""))
+        if k in seen:
+            continue
+        seen.add(k)
+        uniq.append(x)
+    return uniq
 def extract(manifest: dict[str, Any], force: bool = False,
             quiet: bool = False) -> dict[str, Any]:
     root = project_root(manifest)
@@ -671,6 +779,10 @@ def extract(manifest: dict[str, Any], force: bool = False,
     doc = parse(manifest)
     doc["design"]["design"] = rel_to(root, Path(manifest["_path"]))
     doc["design"]["rules_sha256"] = ""
+    try:
+        doc["spec_sva"] = extract_spec_sva(markdown_path.read_text(encoding="utf-8"))
+    except Exception:
+        doc["spec_sva"] = []
     write_extraction_artifacts(manifest, doc)
     if not quiet:
         stats = doc["stats"]

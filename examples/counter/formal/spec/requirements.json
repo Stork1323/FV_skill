@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-11-24T10:19:51+00:00",
+  "generated_at": "2026-11-24T17:15:00+00:00",
   "generated_by": "formal-sva/fv_extract.py",
   "design": {
     "name": "counter",
@@ -155,5 +155,6 @@
     "ready": true
   },
   "errors": [],
-  "warnings": []
+  "warnings": [],
+  "spec_sva": []
 }

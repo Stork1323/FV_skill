@@ -41,9 +41,9 @@ REQUIREMENT_OWNERS = {"dut", "environment", "both", "none"}
 PROPERTY_OWNERS = {"dut", "environment", "verification"}
 DELAY_SOURCES = {"spec", "interface", "project", "engineering_decision"}
 
-DESIGN_KEYS = {"name", "top", "clock", "reset", "parameters", "notes"}
-CLOCK_KEYS = {"signal", "edge"}
-RESET_KEYS = {"signal", "active", "kind", "cycles"}
+DESIGN_KEYS = {"name", "top", "clock", "reset", "clocks", "resets", "domains", "parameters", "notes"}
+CLOCK_KEYS = {"name", "signal", "edge", "domain"}
+RESET_KEYS = {"name", "signal", "active", "kind", "cycles", "domain", "clock"}
 REQUIREMENT_KEYS = {"id", "feature", "disposition", "reason", "limitations",
                     "evidence", "properties", "owner", "obligations", "notes"}
 EVIDENCE_KEYS = {"section", "quote", "source_sha256", "source_lines"}
@@ -53,6 +53,7 @@ PROPERTY_KEYS = {
     "disable_reset", "depth", "severity", "tags", "evidence", "notes",
     "obligation", "owner", "intent", "proof", "configurations",
     "delay_source", "induction_helpers", "limitations",
+    "clock", "reset", "domain",
 }
 INTENT_KEYS = {"type", "owner", "sampling", "reset_policy", "antecedent",
                "consequent", "delay", "bound_source", "bound_justification"}
@@ -484,15 +485,81 @@ def validate_contract(manifest: dict[str, Any], contract: dict[str, Any],
     _check_keys(design, DESIGN_KEYS, "design", r, "design")
     _check_keys(design.get("clock") or {}, CLOCK_KEYS, "design.clock", r, "clock")
     _check_keys(design.get("reset") or {}, RESET_KEYS, "design.reset", r, "reset")
-    reset_kind = str((design.get("reset") or {}).get("kind") or "unknown")
-    if reset_kind == "unknown":
-        r.error("DESIGN_RESET_KIND", "design.reset.kind",
-                "reset kind must be 'async' or 'sync'; 'unknown' cannot be used to "
-                "justify a reset model or a proof")
-    reset_cycles = int((design.get("reset") or {}).get("cycles") or 0)
-    if reset_cycles and reset_cycles < 2:
-        r.error("DESIGN_RESET_CYCLES", "design.reset.cycles",
-                "reset must be active for at least two cycles before monitors arm")
+    ports = {p["name"]: p for p in interface.get("ports") or []}
+
+    def _validate_clock_obj(obj: dict[str, Any], where: str) -> str:
+        sig = str(obj.get("signal") or "")
+        edge = str(obj.get("edge") or "posedge")
+        if edge not in ("posedge", "negedge"):
+            r.error("DESIGN_CLOCK", f"{where}.edge", f"unsupported clock edge {edge!r}")
+        if sig and sig not in ports:
+            r.error("DESIGN_CLOCK", f"{where}.signal", f"clock {sig!r} is not a top-level port")
+        elif sig:
+            p = ports[sig]
+            if p.get("direction") != "input":
+                r.error("DESIGN_CLOCK", f"{where}.signal", f"clock {sig!r} must be an input port")
+            if int(p.get("width") or 1) != 1:
+                r.error("DESIGN_CLOCK", f"{where}.signal", f"clock {sig!r} must be 1-bit")
+        return sig
+
+    def _validate_reset_obj(obj: dict[str, Any], where: str) -> str:
+        sig = str(obj.get("signal") or "")
+        active = str(obj.get("active") or "low")
+        kind = str(obj.get("kind") or "unknown")
+        if active not in ("high", "low"):
+            r.error("DESIGN_RESET", f"{where}.active", f"unsupported reset polarity {active!r}")
+        if kind == "unknown":
+            r.error("DESIGN_RESET_KIND", f"{where}.kind",
+                    "reset kind must be 'async' or 'sync'; 'unknown' cannot be used to justify a reset model or a proof")
+        cycles = int(obj.get("cycles") or 0)
+        if cycles and cycles < 2:
+            r.error("DESIGN_RESET_CYCLES", f"{where}.cycles",
+                    "reset must be active for at least two cycles before monitors arm")
+        if sig and sig not in ports:
+            r.error("DESIGN_RESET", f"{where}.signal", f"reset {sig!r} is not a top-level port")
+        elif sig:
+            p = ports[sig]
+            if p.get("direction") != "input":
+                r.error("DESIGN_RESET", f"{where}.signal", f"reset {sig!r} must be an input port")
+            if int(p.get("width") or 1) != 1:
+                r.error("DESIGN_RESET", f"{where}.signal", f"reset {sig!r} must be 1-bit")
+        return sig
+
+    # default clock/reset
+    _validate_clock_obj(design.get("clock") or {}, "design.clock")
+    _validate_reset_obj(design.get("reset") or {}, "design.reset")
+
+    declared_clocks: dict[str, dict[str, Any]] = {}
+    for i, c in enumerate(design.get("clocks") or []):
+        if not isinstance(c, dict):
+            r.error("SCHEMA", f"design.clocks[{i}]", "clock entry must be an object")
+            continue
+        _check_keys(c, CLOCK_KEYS, f"design.clocks[{i}]", r, "clock")
+        sig = _validate_clock_obj(c, f"design.clocks[{i}]")
+        name = str(c.get("name") or sig or f"clk{i}")
+        declared_clocks[name] = c
+        if sig:
+            declared_clocks.setdefault(sig, c)
+    declared_resets: dict[str, dict[str, Any]] = {}
+    for i, rs in enumerate(design.get("resets") or []):
+        if not isinstance(rs, dict):
+            r.error("SCHEMA", f"design.resets[{i}]", "reset entry must be an object")
+            continue
+        _check_keys(rs, RESET_KEYS, f"design.resets[{i}]", r, "reset")
+        sig = _validate_reset_obj(rs, f"design.resets[{i}]")
+        name = str(rs.get("name") or sig or f"rst{i}")
+        declared_resets[name] = rs
+        if sig:
+            declared_resets.setdefault(sig, rs)
+    # include defaults as resolvable names
+    dclk = design.get("clock") or {}
+    drst = design.get("reset") or {}
+    if dclk.get("signal"):
+        declared_clocks.setdefault(str(dclk["signal"]), dclk)
+        declared_clocks.setdefault("default", dclk)
+    if drst.get("signal"):
+        declared_resets.setdefault(str(drst["signal"]), drst)
+        declared_resets.setdefault("default", drst)
 
     # -- design / configuration ----------------------------------------------------------------
     bdesign = bundle.get("design") or {}
@@ -516,25 +583,6 @@ def validate_contract(manifest: dict[str, Any], contract: dict[str, Any],
         r.error("DESIGN_RESET", "design.reset.active",
                 f"contract reset polarity {(design.get('reset') or {}).get('active')!r} != "
                 f"manifest {man_reset.get('active')!r}")
-    ports = {p["name"]: p for p in interface.get("ports") or []}
-    clock_sig = (design.get("clock") or {}).get("signal")
-    reset_sig = (design.get("reset") or {}).get("signal")
-    if clock_sig and clock_sig not in ports:
-        r.error("DESIGN_CLOCK", "design.clock.signal", f"clock {clock_sig!r} is not a top-level port")
-    elif clock_sig:
-        p = ports[clock_sig]
-        if p.get("direction") != "input":
-            r.error("DESIGN_CLOCK", "design.clock.signal", f"clock {clock_sig!r} must be an input port")
-        if int(p.get("width") or 1) != 1:
-            r.error("DESIGN_CLOCK", "design.clock.signal", f"clock {clock_sig!r} must be 1-bit")
-    if reset_sig and reset_sig not in ports:
-        r.error("DESIGN_RESET", "design.reset.signal", f"reset {reset_sig!r} is not a top-level port")
-    elif reset_sig:
-        p = ports[reset_sig]
-        if p.get("direction") != "input":
-            r.error("DESIGN_RESET", "design.reset.signal", f"reset {reset_sig!r} must be an input port")
-        if int(p.get("width") or 1) != 1:
-            r.error("DESIGN_RESET", "design.reset.signal", f"reset {reset_sig!r} must be 1-bit")
 
     expected_params = dict(interface.get("parameters") or {})
     got_params = design.get("parameters") or {}
@@ -713,6 +761,15 @@ def validate_contract(manifest: dict[str, Any], contract: dict[str, Any],
         if role not in ROLES:
             r.error("PROP_ROLE", where, f"invalid role {role!r}")
         _check_keys(prop, PROPERTY_KEYS, where, r, "property")
+        # multi-clock/reset domain support
+        pclk = prop.get("clock")
+        if pclk:
+            if str(pclk) not in declared_clocks:
+                r.error("PROP_CLOCK", where, f"clock {pclk!r} is not declared in design.clock/clocks")
+        prst = prop.get("reset")
+        if prst:
+            if str(prst) not in declared_resets:
+                r.error("PROP_RESET", where, f"reset {prst!r} is not declared in design.reset/resets")
         obligation = property_obligation(prop)
         if obligation not in OBLIGATIONS:
             r.error("PROP_OBLIGATION", where,

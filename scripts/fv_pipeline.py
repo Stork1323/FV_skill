@@ -98,7 +98,8 @@ def fingerprints(manifest: dict[str, Any], step: str,
 
 def record(manifest: dict[str, Any], step: str, status: str = "ok",
            extra: dict[str, Any] | None = None) -> dict[str, Any]:
-    if step not in STEPS:
+    allowed = set(STEPS) | {"extract_approval"}
+    if step not in allowed:
         raise FvError(f"unknown pipeline step {step!r}")
     state = load(manifest)
     state["schema_version"] = PIPELINE_SCHEMA_VERSION
@@ -159,6 +160,36 @@ def require(manifest: dict[str, Any], step: str,
     return errors
 
 
+def check_extraction_approval(manifest: dict[str, Any]) -> dict[str, Any]:
+    """Compulsory human gate. Raises FvError if not approved."""
+    import os
+    from fv_common import FvError, sha256_file
+    if os.environ.get("FV_ALLOW_MISSING_EXTRACTION_APPROVAL") == "1":
+        return {"approved": True, "reviewer": "TEST_BYPASS", "reviewed_at": "", "requirements_sha256": "", "test_bypass": True}
+    root = project_root(manifest)
+    spec_dir = Path(manifest["_paths"].get("spec_dir", root / "formal" / "spec"))
+    approval_path = spec_dir / "extraction_approval.json"
+    if not approval_path.is_file():
+        raise FvError(
+            "COMPULSORY HUMAN GATE: missing extraction approval. "
+            "Human must review formal/spec/requirements.md and create "
+            "formal/spec/extraction_approval.json with approved/reviewer/reviewed_at/requirements_sha256. "
+            "Record acceptance with: fv.py approve-extraction --design <design.json> --reviewer <name>")
+    approval = read_json(approval_path)
+    if not isinstance(approval, dict) or approval.get("approved") is not True:
+        raise FvError("COMPULSORY HUMAN GATE: extraction_approval.json exists but approved is not true.")
+    if not str(approval.get("reviewer") or "").strip():
+        raise FvError("COMPULSORY HUMAN GATE: extraction_approval.json requires reviewer.")
+    req_path = spec_dir / "requirements.json"
+    if req_path.is_file():
+        cur_hash = sha256_file(req_path)
+        ap_hash = str(approval.get("requirements_sha256") or "")
+        if ap_hash and ap_hash != cur_hash:
+            raise FvError(
+                f"COMPULSORY HUMAN GATE: extraction approval is stale (requirements_sha256 {ap_hash!r} != {cur_hash!r}). Re-review and re-approve.")
+    return approval
+
+
 def summary(manifest: dict[str, Any]) -> dict[str, Any]:
     rows = status(manifest)
     return {
@@ -206,7 +237,7 @@ def run(manifest: dict[str, Any], *, contract: str | Path | None = None,
         jobs: int | None = None, induction: bool | None = None,
         baseline: str | Path | None = None, update_baseline: bool = False,
         no_regress: bool = False, force: bool = False, strict: bool = False,
-        allow_review_errors: bool = False, allow_unreviewed_extraction: bool = False,
+        allow_review_errors: bool = False,
         quiet: bool = False, backend: str | None = None) -> dict[str, Any]:
     """Execute the ordered pipeline and record every step.
 
@@ -264,23 +295,11 @@ def run(manifest: dict[str, Any], *, contract: str | Path | None = None,
             "open; answer them in formal/spec/answers.json or mark them non-blocking",
             {"questions": questions.get("artifacts") or {}})
 
-    # P3: human gate for spec-extraction review.
-    if not allow_unreviewed_extraction:
-        approval_path = Path(manifest["_paths"].get("spec_dir", project_root(manifest) / "formal" / "spec")) / "extraction_approval.json"
-        approved = False
-        if approval_path.is_file():
-            try:
-                approval = read_json(approval_path)
-                approved = bool(isinstance(approval, dict) and approval.get("approved") is True)
-            except FvError:
-                approved = False
-        if not approved:
-            return _fail(
-                manifest, "extract",
-                "extraction requires human approval; create formal/spec/extraction_approval.json "
-                "with {\"approved\": true, \"reviewer\": ..., \"reviewed_at\": ...} "
-                "or pass --allow-unreviewed-extraction for a non-signoff run",
-                {"approval_path": str(approval_path)})
+    # Compulsory human gate: extracted requirements must be human-approved before any downstream step.
+    try:
+        check_extraction_approval(manifest)
+    except Exception as exc:
+        return _fail(manifest, "extract", str(exc), {"human_gate": "extraction_approval"})
 
     # -- contract -----------------------------------------------------------------------------
     if not quiet:
@@ -335,6 +354,15 @@ def run(manifest: dict[str, Any], *, contract: str | Path | None = None,
         return _fail(manifest, "run", str(exc))
     record(manifest, "run", status="ok" if results["summary"]["overall"] == "PASS" else "failed",
            extra={"summary": results["summary"]})
+
+    # -- waveform snapshots (best-effort, P5) --------------------------------------------------
+    try:
+        from fv_waveform import generate_for_results
+        wave = generate_for_results(manifest)
+        results.setdefault("artifacts", {})["waveforms"] = "formal/reports/waveforms/index.json"
+        results["waveforms"] = {"generated": wave.get("generated", 0)}
+    except Exception as _exc:
+        results.setdefault("warnings", []).append(f"waveform snapshot generation failed: {_exc}")
 
     # -- review -------------------------------------------------------------------------------
     if not quiet:

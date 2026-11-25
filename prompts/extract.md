@@ -9,8 +9,9 @@ Read, in this order:
 1. `formal/spec/requirements.md` — the scaffold created by `fv.py init` (or the
    existing extraction to revise).
 2. `spec/spec.md` — the authoritative specification named in the file's front
-   matter. Read the whole file; do not infer behavior from RTL.
-3. `schemas/structured_spec.json` and `schemas/final_config.json` when they
+   matter. Read the whole file; do not infer behavior from RTL. **Read-only:** do not copy spec/RTL; reference them.
+3. `formal/spec/spec_sva.json` / `spec_sva.md` when present — SVA/property snippets found in the spec. Leverage them as authoritative intent: map them to requirements/properties, preserve semantics, and flag conflicts.
+4. `schemas/structured_spec.json` and `schemas/final_config.json` when they
    exist. They are a cross-check, not a substitute for the spec. If the
    extraction file was generated from them, verify each statement and evidence
    quote against `spec.md`.

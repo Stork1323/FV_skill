@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0",
-  "updated_at": "2026-11-24T10:19:52+00:00",
+  "updated_at": "2026-11-24T17:15:00+00:00",
   "steps": {
     "extract": {
       "status": "ok",
-      "timestamp": "2026-11-24T10:19:51+00:00",
+      "timestamp": "2026-11-24T17:15:00+00:00",
       "inputs": {
         "spec_markdown": {
           "path": "/Users/nguyendactam/Working/Formal_verification/skills/formal-sva/examples/counter/spec/spec.md",
@@ -32,15 +32,27 @@
         "extraction": {
           "path": "/Users/nguyendactam/Working/Formal_verification/skills/formal-sva/examples/counter/formal/spec/requirements.json",
           "exists": true,
-          "sha256": "ef80850c0c8aa791f9b60127f7e3237f2dbc61bf0040f4cc28b74914af892c37"
+          "sha256": "03da6fbc0cf8ac0cceccc877605f15b3f9182d75f114ddaab66e413d794f273e"
         },
         "questions": {
           "path": "/Users/nguyendactam/Working/Formal_verification/skills/formal-sva/examples/counter/formal/reports/questions.json",
           "exists": true,
-          "sha256": "296e4374c15aa7a8c5d54666d2c04e3454e96486809c7392f9d02cdee2c5c0c1"
+          "sha256": "9f1aca8bc1164bbde73a5927500096e242205340d93dccd7708132b6ef0461d0"
         }
       },
-      "extra": {}
+      "extra": {
+        "stats": {
+          "features": 2,
+          "requirements": 7,
+          "clear": 7,
+          "unclear": 0,
+          "blocking": 0,
+          "errors": 0,
+          "warnings": 0,
+          "ready": true
+        },
+        "blocking_questions": 0
+      }
     },
     "contract": {
       "status": "ok",

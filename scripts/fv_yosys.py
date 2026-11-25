@@ -116,12 +116,21 @@ def _prep_commands(harness: dict[str, Any], prop: dict[str, Any]) -> list[str]:
     return commands
 
 
-def _reset_args(harness: dict[str, Any], depth: int) -> list[str]:
+def _reset_args(harness: dict[str, Any], prop: dict[str, Any], depth: int) -> list[str]:
     design = harness.get("design") or {}
     reset = design.get("reset") or {}
+    # per-property reset domain
+    if prop.get("reset"):
+        for r in (design.get("resets") or []):
+            if str(r.get("name") or r.get("signal")) == str(prop.get("reset")):
+                reset = r
+                break
+        else:
+            # direct signal name
+            reset = {**reset, "signal": str(prop.get("reset"))}
     signal = reset.get("signal")
-    active = reset.get("active")
-    cycles = int(design.get("reset_cycles") or reset.get("cycles") or 0)
+    active = reset.get("active", "low")
+    cycles = int(reset.get("cycles") or design.get("reset_cycles") or (design.get("reset") or {}).get("cycles") or 0)
     if not signal:
         raise FvError("harness has no reset signal")
     if cycles < 2:
@@ -175,7 +184,7 @@ def _sat_line(harness: dict[str, Any], prop: dict[str, Any], depth: int,
             args.extend(["-tempinduct-skip", str(skip)])
         args.extend(_start_args_induction(depth))
     else:
-        args.extend(_reset_args(harness, depth))
+        args.extend(_reset_args(harness, prop, depth))
         args.extend(_start_args(depth))
     if (harness.get("files") or {}).get("assumptions"):
         args.append("-set-assumes")

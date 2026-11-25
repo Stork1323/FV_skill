@@ -45,10 +45,16 @@ def _qpath(path: Path | str) -> str:
     return f'"{s}"' if any(c.isspace() for c in s) else s
 
 
-def _driver_lines(design: dict[str, Any], induction: bool) -> list[str]:
-    reset_sig, active, _kind = _design_reset(design)
-    clock, edge = _design_clock(design)
-    reset_cycles = int(design.get("reset_cycles") or
+def _driver_lines(design: dict[str, Any], prop: dict[str, Any], induction: bool) -> list[str]:
+    reset_sig, active, _kind = _design_reset(design, prop)
+    clock, edge = _design_clock(design, prop)
+    # per-domain reset cycles
+    reset_obj = design.get("reset") or {}
+    if prop.get("reset"):
+        for r in (design.get("resets") or []):
+            if str(r.get("name") or r.get("signal")) == str(prop.get("reset")):
+                reset_obj = r; break
+    reset_cycles = int(reset_obj.get("cycles") or design.get("reset_cycles") or
                        (design.get("reset") or {}).get("cycles") or 0)
     active_value = 0 if active == "low" else 1
     inactive_value = 1 - active_value
@@ -72,7 +78,7 @@ def _wrapper(harness: dict[str, Any], prop: dict[str, Any], top_module: str,
              induction: bool, cover: bool) -> str:
     design = harness.get("design") or {}
     interface = harness.get("interface") or {}
-    reset_sig, _active, _kind = _design_reset(design)
+    reset_sig, _active, _kind = _design_reset(design, prop)
     ports = list(interface.get("ports") or [])
     input_ports = [p for p in ports
                    if p.get("direction") == "input" and p["name"] != reset_sig]
@@ -85,7 +91,7 @@ def _wrapper(harness: dict[str, Any], prop: dict[str, Any], top_module: str,
     decls.extend("  " + _port_decl(p, "output") for p in output_ports)
     lines.append(",\n".join(decls))
     lines.append(");")
-    lines.extend(_driver_lines(design, induction))
+    lines.extend(_driver_lines(design, prop, induction))
     conns = []
     for p in ports:
         name = p["name"]

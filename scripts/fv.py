@@ -47,6 +47,7 @@ from fv_common import (  # noqa: E402
     load_manifest,
     project_root,
     read_json,
+    write_json,
     rel_to,
     which_yosys,
     yosys_version,
@@ -81,7 +82,47 @@ def _prepare_path(design: str | Path, out: str | None = None, quiet: bool = Fals
 
 
 def _cmd_prepare(args: argparse.Namespace) -> int:
+    manifest = load_manifest(args.design)
+    from fv_pipeline import check_extraction_approval
+    check_extraction_approval(manifest)
     return _prepare_path(args.design, args.out, args.quiet)
+
+
+def _cmd_approve_extraction(args: argparse.Namespace) -> int:
+    """Compulsory human gate: record human acceptance of extracted requirements."""
+    from fv_pipeline import record
+    from fv_common import sha256_file
+
+    manifest = load_manifest(args.design)
+    paths = {k: Path(v) for k, v in manifest["_paths"].items()}
+    req_path = paths["extraction"]
+    if not req_path.is_file():
+        print("error: formal/spec/requirements.json not found; run extract first", file=sys.stderr)
+        return 1
+    if not str(args.reviewer or "").strip():
+        print("error: --reviewer is required (human who accepted the extraction)", file=sys.stderr)
+        return 1
+    req = read_json(req_path)
+    stats = req.get("stats") or {}
+    approval = {
+        "schema_version": "1.0",
+        "approved": True,
+        "reviewer": str(args.reviewer).strip(),
+        "reviewed_at": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(),
+        "requirements_sha256": sha256_file(req_path),
+        "requirements_md_sha256": sha256_file(paths["requirements"]) if paths["requirements"].is_file() else "",
+        "spec_sha256": str((req.get("design") or {}).get("spec_sha256") or ""),
+        "stats": stats,
+        "note": str(args.note or ""),
+    }
+    out = paths["extraction"].parent / "extraction_approval.json"
+    write_json(out, approval)
+    record(manifest, "extract_approval", status="ok", extra={"reviewer": approval["reviewer"], "requirements_sha256": approval["requirements_sha256"]})
+    if not args.quiet:
+        print(f"extraction approved by {approval['reviewer']}")
+        print(f"  {out}")
+        print(f"  requirements_sha256: {approval['requirements_sha256']}")
+    return 0
 
 
 def _cmd_extract(args: argparse.Namespace) -> int:
@@ -111,6 +152,8 @@ def _cmd_validate(args: argparse.Namespace) -> int:
     from fv_pipeline import record
 
     manifest = load_manifest(args.design)
+    from fv_pipeline import check_extraction_approval
+    check_extraction_approval(manifest)
     validation, _contract, _bundle, _interface = validate_design(
         manifest, Path(args.contract) if args.contract else None, args.strict)
     record(manifest, "contract", status="ok" if validation.ok else "failed",
@@ -138,6 +181,8 @@ def _cmd_render(args: argparse.Namespace) -> int:
     from fv_render import render
 
     manifest = load_manifest(args.design)
+    from fv_pipeline import check_extraction_approval
+    check_extraction_approval(manifest)
     render(manifest, Path(args.contract) if args.contract else None, args.depth,
            quiet=args.quiet)
     record(manifest, "render")
@@ -149,6 +194,8 @@ def _cmd_run(args: argparse.Namespace) -> int:
     from fv_run import run_all
 
     manifest = load_manifest(args.design)
+    from fv_pipeline import check_extraction_approval
+    check_extraction_approval(manifest)
     results = run_all(
         manifest,
         Path(args.contract) if args.contract else None,
@@ -176,6 +223,8 @@ def _cmd_run(args: argparse.Namespace) -> int:
 def _cmd_structural(args: argparse.Namespace) -> int:
     from fv_structural import run as structural_run
     manifest = load_manifest(args.design)
+    from fv_pipeline import check_extraction_approval
+    check_extraction_approval(manifest)
     res = structural_run(manifest)
     if args.json:
         print(json.dumps(res, indent=2))
@@ -189,6 +238,8 @@ def _cmd_review(args: argparse.Namespace) -> int:
     from fv_review import review, write_review
 
     manifest = load_manifest(args.design)
+    from fv_pipeline import check_extraction_approval
+    check_extraction_approval(manifest)
     results = read_json(Path(args.results)) if args.results else None
     doc = review(manifest, results,
                  Path(args.contract) if args.contract else None)
@@ -206,9 +257,23 @@ def _cmd_review(args: argparse.Namespace) -> int:
 
 
 
+
+def _cmd_waveforms(args: argparse.Namespace) -> int:
+    from fv_waveform import generate_for_results
+    manifest = load_manifest(args.design)
+    res = generate_for_results(manifest)
+    if args.json:
+        print(json.dumps(res, indent=2))
+    else:
+        print(f"waveforms: {res.get('generated',0)} generated")
+        for a in res.get('artifacts',[])[:20]:
+            print(f"  {a.get('property')}: {a.get('svg')}")
+    return 0
 def _cmd_matrix(args: argparse.Namespace) -> int:
     from fv_matrix import report
     manifest = load_manifest(args.design)
+    from fv_pipeline import check_extraction_approval
+    check_extraction_approval(manifest)
     res = report(manifest)
     if args.json:
         print(json.dumps(res, indent=2))
@@ -262,6 +327,8 @@ def _cmd_regress(args: argparse.Namespace) -> int:
     if not args.design:
         raise FvError("pass --design or --suite")
     manifest = load_manifest(args.design)
+    from fv_pipeline import check_extraction_approval
+    check_extraction_approval(manifest)
     result = regress_design(
         manifest,
         args.baseline,
@@ -375,7 +442,7 @@ def _cmd_all(args: argparse.Namespace) -> int:
         force=args.force,
         strict=args.strict,
         allow_review_errors=args.allow_review_errors,
-        allow_unreviewed_extraction=getattr(args, "allow_unreviewed_extraction", False),
+
         quiet=args.quiet,
         backend=args.backend,
     )
@@ -468,6 +535,13 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--quiet", action="store_true")
     p.set_defaults(func=_cmd_extract)
 
+    p = sub.add_parser("approve-extraction", help="COMPULSORY human gate: record human acceptance of extracted requirements")
+    p.add_argument("--design", required=True)
+    p.add_argument("--reviewer", required=True, help="Human reviewer name/id who accepted the extraction")
+    p.add_argument("--note", default="", help="Optional review note")
+    p.add_argument("--quiet", action="store_true")
+    p.set_defaults(func=_cmd_approve_extraction)
+
     p = sub.add_parser("prepare", help="build the contract-writing bundle")
     p.add_argument("--design", required=True)
     p.add_argument("--out")
@@ -539,6 +613,11 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 
+
+    p = sub.add_parser("waveforms", help="generate waveform snapshot evidence for properties")
+    p.add_argument("--design", required=True)
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(func=_cmd_waveforms)
     p = sub.add_parser("matrix", help="report configuration matrix coverage")
     p.add_argument("--design", required=True)
     p.add_argument("--json", action="store_true")

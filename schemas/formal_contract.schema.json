@@ -128,6 +128,73 @@
         },
         "notes": {
           "type": "string"
+        },
+        "clocks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "signal"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "signal": {
+                "type": "string"
+              },
+              "edge": {
+                "enum": [
+                  "posedge",
+                  "negedge"
+                ]
+              },
+              "domain": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "resets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "signal"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "signal": {
+                "type": "string"
+              },
+              "active": {
+                "enum": [
+                  "high",
+                  "low"
+                ]
+              },
+              "kind": {
+                "enum": [
+                  "sync",
+                  "async"
+                ]
+              },
+              "cycles": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "domain": {
+                "type": "string"
+              },
+              "clock": {
+                "type": "string"
+              }
+            }
+          }
         }
       }
     },
@@ -341,40 +408,108 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "type": {"enum": ["safety", "reachability", "bounded_response", "environment", "structural", "liveness"]},
-            "owner": {"enum": ["dut", "environment", "verification"]},
+            "type": {
+              "enum": [
+                "safety",
+                "reachability",
+                "bounded_response",
+                "environment",
+                "structural",
+                "liveness"
+              ]
+            },
+            "owner": {
+              "enum": [
+                "dut",
+                "environment",
+                "verification"
+              ]
+            },
             "sampling": {
               "type": "object",
               "additionalProperties": false,
               "properties": {
-                "signal": {"type": "string"},
-                "edge": {"enum": ["posedge", "negedge"]}
+                "signal": {
+                  "type": "string"
+                },
+                "edge": {
+                  "enum": [
+                    "posedge",
+                    "negedge"
+                  ]
+                }
               }
             },
-            "reset_policy": {"enum": ["disabled", "active", "none"]},
-            "antecedent": {"type": "string"},
-            "consequent": {"type": "string"},
+            "reset_policy": {
+              "enum": [
+                "disabled",
+                "active",
+                "none"
+              ]
+            },
+            "antecedent": {
+              "type": "string"
+            },
+            "consequent": {
+              "type": "string"
+            },
             "delay": {
               "type": "object",
               "additionalProperties": false,
               "properties": {
-                "min": {"type": "integer", "minimum": 0},
-                "max": {"type": "integer", "minimum": 0}
+                "min": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "max": {
+                  "type": "integer",
+                  "minimum": 0
+                }
               }
             },
-            "bound_source": {"enum": ["spec", "interface", "project", "engineering_decision"]},
-            "bound_justification": {"type": "string"}
+            "bound_source": {
+              "enum": [
+                "spec",
+                "interface",
+                "project",
+                "engineering_decision"
+              ]
+            },
+            "bound_justification": {
+              "type": "string"
+            }
           }
         },
         "proof": {
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "method": {"enum": ["bmc", "induction", "helper_invariants", "decomposition", "abstraction", "bounded_reset_check", "unsupported"]},
-            "helpers": {"type": "array", "items": {"type": "string"}},
-            "soundness": {"type": "string"},
-            "backend": {"type": "string"},
-            "notes": {"type": "string"}
+            "method": {
+              "enum": [
+                "bmc",
+                "induction",
+                "helper_invariants",
+                "decomposition",
+                "abstraction",
+                "bounded_reset_check",
+                "unsupported"
+              ]
+            },
+            "helpers": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "soundness": {
+              "type": "string"
+            },
+            "backend": {
+              "type": "string"
+            },
+            "notes": {
+              "type": "string"
+            }
           }
         },
         "configurations": {
@@ -398,6 +533,15 @@
           }
         },
         "limitations": {
+          "type": "string"
+        },
+        "clock": {
+          "type": "string"
+        },
+        "reset": {
+          "type": "string"
+        },
+        "domain": {
           "type": "string"
         }
       }

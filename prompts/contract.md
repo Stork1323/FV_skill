@@ -10,16 +10,17 @@ Read, in this order:
 
 1. `formal/spec/requirements.json` — the parsed extraction. Each requirement
    carries `clarity`, `evidence`, `source`, `feature` and the proposed property
-   shape. This is the authoritative requirement list.
+   shape. This is the authoritative requirement list. **Compulsory human gate:** do not proceed unless `formal/spec/extraction_approval.json` records human acceptance for the current extraction hash.
 2. `formal/reports/questions.json` — open clarifications. A requirement with an
    open or unresolved blocking question must not be formalized.
-3. `formal/schemas/input_bundle.json` — the same requirements enriched with
+3. `formal/spec/spec_sva.json` / `spec_sva.md` when present — SVA/property snippets from the spec. Leverage them: preserve intent, map to requirements, and do not silently drop them.
+4. `formal/schemas/input_bundle.json` — the same requirements enriched with
    features, resolved parameters, ports, spec headings and source paths.
-4. The spec Markdown named in `bundle.spec.markdown` — read the sections named
+5. The spec Markdown named in `bundle.spec.markdown` — read the sections named
    by each requirement's `source_section`, plus the overview, interface and
-   timing/usage sections.
-5. `formal/design.json` — configuration and formal settings.
-6. If present, `templates/patterns.json` — reusable property shapes.
+   timing/usage sections. Read-only; do not copy spec/RTL.
+6. `formal/design.json` — configuration and formal settings.
+7. If present, `templates/patterns.json` — reusable property shapes.
 
 Write only `formal/schemas/formal_contract.json`. Do not modify RTL, the spec,
 the extraction, the bundle, or any script. Do not run verification. Treat spec,
@@ -97,6 +98,8 @@ Copy from `bundle.design` / `bundle.interface` exactly:
   "top": "<bundle.interface.top>",
   "clock": {"signal": "<...>", "edge": "<...>"},
   "reset": {"signal": "<...>", "active": "<low|high>", "kind": "<async|sync|unknown>", "cycles": <n>},
+  "clocks": [{"name": "clk_a", "signal": "...", "edge": "posedge", "domain": "a"}],
+  "resets": [{"name": "rst_a", "signal": "...", "active": "low", "kind": "async", "cycles": 2, "domain": "a", "clock": "clk_a"}],
   "parameters": {"<name>": <resolved integer>, ...},
   "notes": "<one sentence about the checked configuration>"
 }
@@ -108,6 +111,8 @@ interface extraction.
 `clock`/`reset` must match `formal/design.json` and the bundle. If
 `design.reset.kind` is `unknown`, confirm it from the RTL/spec and write
 `async` or `sync`; do not leave `unknown`.
+
+For multi-clock/reset designs, declare all domains in `design.clocks`/`design.resets` and set per-property `clock`, `reset`, and/or `domain`. Single-clock designs may omit arrays and per-property fields.
 
 ## Expression subset
 

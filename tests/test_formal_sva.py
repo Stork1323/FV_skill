@@ -62,15 +62,21 @@ def _copy_counter(tmp: Path) -> Path:
     return dest
 
 
-def _run_cli(*args: str, cwd: Path | None = None) -> tuple[int, str, str]:
-    import subprocess
-
+def _run_cli(*args: str, cwd: Path | None = None, env: dict | None = None) -> tuple[int, str, str]:
+    import os, subprocess
+    e = os.environ.copy()
+    # Most tests are not about the extraction-approval gate; keep them stable.
+    # Gate-specific tests should pass env={"FV_ALLOW_MISSING_EXTRACTION_APPROVAL":"0"}.
+    e.setdefault("FV_ALLOW_MISSING_EXTRACTION_APPROVAL", "1")
+    if env:
+        e.update(env)
     proc = subprocess.run(
         [sys.executable, str(SCRIPTS / "fv.py"), *args],
         cwd=str(cwd or SKILL),
         capture_output=True,
         text=True,
         timeout=600,
+        env=e,
     )
     return proc.returncode, proc.stdout, proc.stderr
 

@@ -120,8 +120,23 @@ def _check_interface(interface: dict[str, Any]) -> None:
             )
 
 
-def _design_clock(design: dict[str, Any]) -> tuple[str, str]:
+def _resolve_named(obj_map: list[dict[str, Any]], key: str | None) -> dict[str, Any] | None:
+    if not key:
+        return None
+    for obj in obj_map:
+        if str(obj.get("name") or "") == key or str(obj.get("signal") or "") == key:
+            return obj
+    return None
+
+
+def _design_clock(design: dict[str, Any], prop: dict[str, Any] | None = None) -> tuple[str, str]:
     clock = design.get("clock") or {}
+    if prop and prop.get("clock"):
+        resolved = _resolve_named(list(design.get("clocks") or []), str(prop.get("clock")))
+        if resolved:
+            clock = resolved
+        else:
+            clock = {**clock, "signal": str(prop["clock"])}
     signal = str(clock.get("signal") or "")
     edge = str(clock.get("edge") or "posedge")
     if not signal:
@@ -131,8 +146,14 @@ def _design_clock(design: dict[str, Any]) -> tuple[str, str]:
     return signal, edge
 
 
-def _design_reset(design: dict[str, Any]) -> tuple[str, str, str]:
+def _design_reset(design: dict[str, Any], prop: dict[str, Any] | None = None) -> tuple[str, str, str]:
     reset = design.get("reset") or {}
+    if prop and prop.get("reset"):
+        resolved = _resolve_named(list(design.get("resets") or []), str(prop.get("reset")))
+        if resolved:
+            reset = resolved
+        else:
+            reset = {**reset, "signal": str(prop["reset"])}
     signal = str(reset.get("signal") or "")
     active = str(reset.get("active") or "low")
     kind = str(reset.get("kind") or "unknown")
@@ -143,8 +164,8 @@ def _design_reset(design: dict[str, Any]) -> tuple[str, str, str]:
     return signal, active, kind
 
 
-def _reset_active_expr(design: dict[str, Any]) -> str:
-    signal, active, _kind = _design_reset(design)
+def _reset_active_expr(design: dict[str, Any], prop: dict[str, Any] | None = None) -> str:
+    signal, active, _kind = _design_reset(design, prop)
     return f"!{signal}" if active == "low" else signal
 
 
@@ -311,7 +332,7 @@ def _sva_history_guard(prop: dict[str, Any], design: dict[str, Any]) -> str:
         return ""
     parts = ["$past(1'b1)"]
     if _disable_default(prop):
-        parts.append(f"$past(!({_reset_active_expr(design)}))")
+        parts.append(f"$past(!({_reset_active_expr(design, prop)}))")
     return " && ".join(parts)
 
 
@@ -333,8 +354,8 @@ def _monitor_header(name: str, interface: dict[str, Any], cover: bool) -> str:
     return f"module {name} (\n" + ",\n".join(ports) + "\n);"
 
 
-def _common_arm_lines(design: dict[str, Any]) -> str:
-    reset = _reset_active_expr(design)
+def _common_arm_lines(design: dict[str, Any], prop: dict[str, Any] | None = None) -> str:
+    reset = _reset_active_expr(design, prop)
     return (
         f"  wire fv_armed = fv_start && !({reset});\n"
         f"  wire fv_rst_armed = fv_start && ({reset});"
@@ -364,7 +385,7 @@ def _assert_monitor(prop: dict[str, Any], design: dict[str, Any], interface: dic
                     module: str) -> str:
     pid = str(prop["id"])
     kind = str(prop["kind"])
-    clock, edge = _design_clock(design)
+    clock, edge = _design_clock(design, prop)
     params = design.get("parameters") or {}
     history = _history_for_prop(prop, interface)
     uses_history = _uses_history(prop)
@@ -373,7 +394,7 @@ def _assert_monitor(prop: dict[str, Any], design: dict[str, Any], interface: dic
         f"// {pid}: {prop.get('title', '')}",
         f"// kind={kind} req={prop.get('req', '')}",
         _monitor_header(module, interface, False),
-        _common_arm_lines(design),
+        _common_arm_lines(design, prop),
     ]
     for entry in history.values():
         lines.append(_history_decl(entry))
@@ -472,19 +493,19 @@ def _cover_monitor(prop: dict[str, Any], design: dict[str, Any], interface: dict
                    module: str, mode: str) -> str:
     """A cover or assumption-satisfiability monitor with an ``fv_cover`` output."""
     pid = str(prop["id"])
-    clock, edge = _design_clock(design)
+    clock, edge = _design_clock(design, prop)
     params = design.get("parameters") or {}
     history = _collect_history([str(prop.get(k) or "") for k in ("when", "expr")], interface)
     uses_history = _uses_history(prop)
     if mode == "assume":
-        arm = "fv_start" + (f" && !({_reset_active_expr(design)})" if _disable_default(prop) else "")
+        arm = "fv_start" + (f" && !({_reset_active_expr(design, prop)})" if _disable_default(prop) else "")
     else:
         arm = "fv_armed" if _disable_default(prop) else "fv_start"
     lines = [
         f"// {pid}: {prop.get('title', '')}",
         f"// role={prop.get('role', '')} kind={prop.get('kind', '')} req={prop.get('req', '')}",
         _monitor_header(module, interface, True),
-        _common_arm_lines(design),
+        _common_arm_lines(design, prop),
     ]
     for entry in history.values():
         lines.append(_history_decl(entry))
@@ -509,40 +530,65 @@ def _cover_monitor(prop: dict[str, Any], design: dict[str, Any], interface: dict
 
 def _assumption_monitor(assumptions: list[dict[str, Any]], design: dict[str, Any],
                         interface: dict[str, Any]) -> str:
-    clock, edge = _design_clock(design)
     params = design.get("parameters") or {}
-    exprs: list[str] = []
+    # Group assumptions by clock domain for history sampling.
+    groups: dict[tuple[str, str], dict[str, Any]] = {}
     for p in assumptions:
-        exprs.extend([str(p.get("when") or ""), str(p.get("expr") or "")])
-    history = _collect_history(exprs, interface)
-    uses_history = any(_uses_history(p) for p in assumptions)
+        clk, edge = _design_clock(design, p)
+        key = (clk, edge)
+        g = groups.setdefault(key, {"clock": clk, "edge": edge, "props": [], "exprs": []})
+        g["props"].append(p)
+        g["exprs"].extend([str(p.get("when") or ""), str(p.get("expr") or "")])
     lines = [
         "// Environment assumptions of the formal contract.",
         _monitor_header("fv_assume_all", interface, False),
-        _common_arm_lines(design),
+        _common_arm_lines(design, None),
     ]
-    for entry in history.values():
-        lines.append(_history_decl(entry))
-    if uses_history:
-        lines.append(_history_valid_lines("fv_start", clock, edge))
-    hist_block = _history_block(history, clock, edge, "fv_start" if uses_history else None)
-    if hist_block:
-        lines.append(hist_block)
+    # per-group history
+    group_hist: dict[tuple[str, str], dict[str, dict[str, Any]]] = {}
+    for key, g in groups.items():
+        hist = _collect_history(g["exprs"], interface)
+        group_hist[key] = hist
+        for entry in hist.values():
+            lines.append(_history_decl(entry))
+    # per-group history valid and history blocks
+    for gi, (key, g) in enumerate(groups.items()):
+        hist = group_hist[key]
+        uses_history = any(_uses_history(p) for p in g["props"])
+        hv = f"fv_hist_valid_g{gi}"
+        if uses_history:
+            lines.append(f"  logic {hv};")
+            lines.append(f"  initial {hv} = 1'b0;")
+            lines.append(f"  always_ff @({g['edge']} {g['clock']}) {hv} <= fv_start;")
+            hb = _history_block(hist, g["clock"], g["edge"], "fv_start")
+            if hb:
+                lines.append(hb)
+        else:
+            # still emit history block if any history exists (harmless)
+            hb = _history_block(hist, g["clock"], g["edge"], "fv_start")
+            if hb:
+                lines.append(hb)
+        g["hist_valid"] = hv if uses_history else "1'b1"
+        g["hist"] = hist
+
     lines.append("  always @* begin")
-    for p in assumptions:
-        pid = str(p["id"])
-        arm = "fv_start"
-        if _disable_default(p):
-            arm += f" && !({_reset_active_expr(design)})"
-        when = str(p.get("when") or "").strip()
-        cond = f"({arm})"
-        if _uses_history(p):
-            cond += " && fv_hist_valid"
-        if when:
-            cond += f" && ({map_expr(when, history, 'monitor', params)})"
-        expr = map_expr(str(p["expr"]), history, "monitor", params)
-        lines.append(f"    // {pid}")
-        lines.append(f"    if ({cond}) assume({expr});")
+    for key, g in groups.items():
+        hist = g["hist"]
+        hv = g["hist_valid"]
+        for p in g["props"]:
+            pid = str(p["id"])
+            arm = "fv_start"
+            if _disable_default(p):
+                arm += f" && !({_reset_active_expr(design, p)})"
+            when = str(p.get("when") or "").strip()
+            cond = f"({arm})"
+            if _uses_history(p):
+                cond += f" && {hv}"
+            if when:
+                cond += f" && ({map_expr(when, hist, 'monitor', params)})"
+            expr = map_expr(str(p["expr"]), hist, "monitor", params)
+            lines.append(f"    // {pid}")
+            lines.append(f"    if ({cond}) assume({expr});")
     lines.append("  end")
     lines.append("endmodule")
     lines.append("")
@@ -601,7 +647,7 @@ def _sva_property(prop: dict[str, Any], design: dict[str, Any]) -> str:
     kind = str(prop["kind"])
     params = design.get("parameters") or {}
     when = str(prop.get("when") or "").strip()
-    reset = _reset_active_expr(design)
+    reset = _reset_active_expr(design, prop)
     disable = _disable_default(prop)
     hist_guard = _sva_history_guard(prop, design)
 
@@ -616,8 +662,8 @@ def _sva_property(prop: dict[str, Any], design: dict[str, Any]) -> str:
             body = f"({map_expr(when, {}, 'sva', params)}) && ({body})"
         body = antecedent(body)
         if disable:
-            return f"cover property (@({_design_clock(design)[1]} {_design_clock(design)[0]}) disable iff ({reset}) ({body}));"
-        return f"cover property (@({_design_clock(design)[1]} {_design_clock(design)[0]}) ({body}));"
+            return f"cover property (@({_design_clock(design, prop)[1]} {_design_clock(design, prop)[0]}) disable iff ({reset}) ({body}));"
+        return f"cover property (@({_design_clock(design, prop)[1]} {_design_clock(design, prop)[0]}) ({body}));"
 
     if kind == "reset_value":
         body = map_expr(str(prop["expr"]), {}, "sva", params)
@@ -626,7 +672,7 @@ def _sva_property(prop: dict[str, Any], design: dict[str, Any]) -> str:
         else:
             guard = f"({reset})"
         return (
-            f"assert property (@({_design_clock(design)[1]} {_design_clock(design)[0]}) "
+            f"assert property (@({_design_clock(design, prop)[1]} {_design_clock(design, prop)[0]}) "
             f"({guard}) |-> ({body}))"
         )
 
@@ -658,7 +704,7 @@ def _sva_property(prop: dict[str, Any], design: dict[str, Any]) -> str:
     else:
         raise FvError(f"property {prop.get('id')}: unsupported kind {kind!r}")
 
-    clock, edge = _design_clock(design)
+    clock, edge = _design_clock(design, prop)
     dis = f"disable iff ({reset}) " if disable else ""
     return f"assert property (@({edge} {clock}) {dis}({body}))"
 
