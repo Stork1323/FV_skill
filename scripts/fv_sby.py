@@ -128,7 +128,7 @@ def _param_override(design: dict[str, Any]) -> str:
 
 def _read_command(harness: dict[str, Any], files: list[Path]) -> str:
     hfiles = harness.get("files") or {}
-    parts = ["read_verilog -formal -sv"]
+    parts = ["read_verilog -formal -sv -DSYNTHESIS"]
     for inc in hfiles.get("include_dirs") or []:
         parts.append(f"-I{_qpath(inc)}")
     for define in hfiles.get("defines") or []:

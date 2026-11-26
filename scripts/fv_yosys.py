@@ -7,7 +7,7 @@ run, so a failure or timeout is attributable to exactly one property.
 
 Yosys-specific facts encoded here (verified against Yosys 0.71):
 
-* ``read_verilog -formal -sv`` then ``prep -top ... -flatten``.
+* ``read_verilog -formal -sv -DSYNTHESIS`` then ``prep -top ... -flatten``.
 * ``async2sync`` is required before ``sat`` for designs with ``$adff``.
 * ``memory_map`` turns small inferred memories (FIFOs) into flops.
 * ``sat -set-at N signal value`` is 1-based.
@@ -95,7 +95,7 @@ def harness_files(harness: dict[str, Any], prop: dict[str, Any]) -> list[Path]:
 
 def _read_command(harness: dict[str, Any], prop: dict[str, Any]) -> str:
     files = harness.get("files") or {}
-    parts = ["read_verilog -formal -sv"]
+    parts = ["read_verilog -formal -sv -DSYNTHESIS"]
     for inc in files.get("include_dirs") or []:
         parts.append(f"-I{_qpath(inc)}")
     for d in files.get("defines") or []:

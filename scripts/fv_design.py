@@ -457,7 +457,7 @@ def yosys_port_widths(sources: list[Path], include_dirs: list[Path], defines: li
         s = str(p)
         return f'"{s}"' if any(c.isspace() for c in s) else s
 
-    parts = ["read_verilog -formal -sv"]
+    parts = ["read_verilog -formal -sv -DSYNTHESIS"]
     for inc in include_dirs:
         parts.append(f"-I{qpath(inc)}")
     for d in defines:
