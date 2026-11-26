@@ -1,0 +1,245 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-11-26T01:59:04+00:00",
+  "design": {
+    "name": "dual_clock",
+    "top": "dual_clock",
+    "clock": {
+      "signal": "clk_a",
+      "edge": "posedge"
+    },
+    "reset": {
+      "signal": "rst_a_n",
+      "active": "low",
+      "kind": "async",
+      "cycles": 2
+    },
+    "parameters": {}
+  },
+  "contract": {
+    "path": "formal/schemas/formal_contract.json",
+    "sha256": "25f47a3889d5272534d156ee590ff169491c49647e4a6d408dd2bb0e7cf2ba50"
+  },
+  "summary": {
+    "overall": "PASS",
+    "statuses": {
+      "BMC_PASS": 2,
+      "PROVEN": 2,
+      "COVERED": 1
+    }
+  },
+  "properties": {
+    "PRP-REQ-001-01": {
+      "status": "BMC_PASS",
+      "req": "REQ-001",
+      "semantic": {
+        "id": "PRP-REQ-001-01",
+        "req": "REQ-001",
+        "feature": "F03",
+        "kind": "reset_value",
+        "role": "assert",
+        "title": "Domain A reset clears the captured request",
+        "expr": "dbg_req_a == 1'b0",
+        "disable_reset": false,
+        "severity": "error",
+        "tags": [
+          "reset",
+          "domain-a"
+        ],
+        "evidence": {
+          "section": "4.1 Domain A request capture",
+          "quote": "While rst_a_n is low, dbg_req_a shall be 0."
+        },
+        "clock": "clk_a",
+        "reset": "rst_a"
+      },
+      "severity": "error",
+      "kind": "reset_value",
+      "role": "assert",
+      "semantic_sha256": "8674c699c1a17b8e28dde92a17089c03088a0329c6455cf4aeed6aa70f5eaf87",
+      "run_id": "0256981b4dabf559",
+      "assumption_set_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "PRP-REQ-002-01": {
+      "status": "PROVEN",
+      "req": "REQ-002",
+      "semantic": {
+        "id": "PRP-REQ-002-01",
+        "req": "REQ-002",
+        "feature": "F01",
+        "kind": "next",
+        "role": "assert",
+        "title": "Domain A captures a request on the next clock edge",
+        "expr": "dbg_req_a == 1'b1",
+        "trigger": "i_req && !dbg_req_a",
+        "severity": "error",
+        "tags": [
+          "capture",
+          "domain-a"
+        ],
+        "evidence": {
+          "section": "4.1 Domain A request capture",
+          "quote": "When i_req is 1 and dbg_req_a is 0, dbg_req_a shall be 1 on the next rising edge of clk_a."
+        },
+        "clock": "clk_a",
+        "reset": "rst_a"
+      },
+      "severity": "error",
+      "kind": "next",
+      "role": "assert",
+      "semantic_sha256": "ff0e0cf1af0431b09913f1a6828ff79f1becd954966c2529cc89ac200e32a598",
+      "run_id": "0256981b4dabf559",
+      "assumption_set_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "PRP-REQ-003-01": {
+      "status": "BMC_PASS",
+      "req": "REQ-003",
+      "semantic": {
+        "id": "PRP-REQ-003-01",
+        "req": "REQ-003",
+        "feature": "F03",
+        "kind": "reset_value",
+        "role": "assert",
+        "title": "Domain B reset clears the acknowledge",
+        "expr": "o_ack == 1'b0",
+        "disable_reset": false,
+        "severity": "error",
+        "tags": [
+          "reset",
+          "domain-b"
+        ],
+        "evidence": {
+          "section": "4.2 Domain B synchronization and acknowledge",
+          "quote": "While rst_b_n is low, o_ack shall be 0."
+        },
+        "clock": "clk_b",
+        "reset": "rst_b"
+      },
+      "severity": "error",
+      "kind": "reset_value",
+      "role": "assert",
+      "semantic_sha256": "10530ffab22f167204c3bc41ddebf2c3a2f1acb0ed951f5fe63be739ce0ced07",
+      "run_id": "0256981b4dabf559",
+      "assumption_set_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "PRP-REQ-004-01": {
+      "status": "PROVEN",
+      "req": "REQ-004",
+      "semantic": {
+        "id": "PRP-REQ-004-01",
+        "req": "REQ-004",
+        "feature": "F02",
+        "kind": "next",
+        "role": "assert",
+        "title": "Domain B acknowledges a synchronized request",
+        "expr": "o_ack == 1'b1",
+        "trigger": "dbg_req_b_sync && !o_ack",
+        "severity": "error",
+        "tags": [
+          "acknowledge",
+          "domain-b"
+        ],
+        "evidence": {
+          "section": "4.2 Domain B synchronization and acknowledge",
+          "quote": "When the synchronized request dbg_req_b_sync is 1 and o_ack is 0, o_ack shall be 1 on the next rising edge of clk_b."
+        },
+        "clock": "clk_b",
+        "reset": "rst_b"
+      },
+      "severity": "error",
+      "kind": "next",
+      "role": "assert",
+      "semantic_sha256": "9662f51cb4570f380fa6b739a1baa384587f160b78819d998357bc7e1a973418",
+      "run_id": "0256981b4dabf559",
+      "assumption_set_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "COV-REQ-005-01": {
+      "status": "COVERED",
+      "req": "REQ-005",
+      "semantic": {
+        "id": "COV-REQ-005-01",
+        "req": "REQ-005",
+        "feature": "F02",
+        "kind": "cover",
+        "role": "cover",
+        "title": "A synchronized acknowledge is reachable",
+        "expr": "dbg_req_b_sync && o_ack",
+        "severity": "info",
+        "tags": [
+          "coverage",
+          "domain-b"
+        ],
+        "evidence": {
+          "section": "4.3 Verification scenarios",
+          "quote": "A cycle with dbg_req_b_sync 1 and o_ack 1 shall be reachable after reset in domain B."
+        },
+        "domain": "b"
+      },
+      "severity": "info",
+      "kind": "cover",
+      "role": "cover",
+      "semantic_sha256": "17a28c4f4e7cf3a1695b4b29393d9be5f9c49dec53937ee45ca251a779ff46b7",
+      "run_id": "0256981b4dabf559",
+      "assumption_set_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  "requirements": {
+    "REQ-001": {
+      "status": "BMC_PASS",
+      "req": null,
+      "semantic": {
+        "severity": "error"
+      },
+      "severity": "error"
+    },
+    "REQ-002": {
+      "status": "PROVEN",
+      "req": null,
+      "semantic": {
+        "severity": "error"
+      },
+      "severity": "error"
+    },
+    "REQ-003": {
+      "status": "BMC_PASS",
+      "req": null,
+      "semantic": {
+        "severity": "error"
+      },
+      "severity": "error"
+    },
+    "REQ-004": {
+      "status": "PROVEN",
+      "req": null,
+      "semantic": {
+        "severity": "error"
+      },
+      "severity": "error"
+    },
+    "REQ-005": {
+      "status": "COVERED",
+      "req": null,
+      "semantic": {
+        "severity": "info"
+      },
+      "severity": "info"
+    }
+  },
+  "features": {
+    "F01": {
+      "status": "OK",
+      "req": null,
+      "semantic": {}
+    },
+    "F02": {
+      "status": "OK",
+      "req": null,
+      "semantic": {}
+    },
+    "F03": {
+      "status": "OK",
+      "req": null,
+      "semantic": {}
+    }
+  }
+}

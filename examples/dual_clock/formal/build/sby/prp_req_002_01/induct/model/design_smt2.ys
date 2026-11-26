@@ -1,0 +1,8 @@
+# running in /private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_002_01/induct/model/
+read_rtlil design_prep.il
+hierarchy -smtcheck
+delete */t:$print
+formalff -assume
+dffunmap
+stat
+write_smt2 -wires design_smt2.smt2

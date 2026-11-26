@@ -1,0 +1,875 @@
+{
+  "schema_version": "1.1",
+  "run_id": "0256981b4dabf559",
+  "generated_at": "2026-11-26T01:58:51+00:00",
+  "design": {
+    "name": "dual_clock",
+    "top": "dual_clock",
+    "clock": {
+      "signal": "clk_a",
+      "edge": "posedge"
+    },
+    "reset": {
+      "signal": "rst_a_n",
+      "active": "low",
+      "kind": "async",
+      "cycles": 2
+    },
+    "parameters": {}
+  },
+  "scope": {
+    "configuration": {},
+    "proven": [
+      "BMC and induction per property, with each property bound to its declared clock/reset domain"
+    ],
+    "not_proven": [
+      "Metastability, MTBF and analog CDC effects are out of scope",
+      "The two-flop synchronizer is a logical model only"
+    ],
+    "notes": "Dual-clock fixture for per-property clock/reset and domain resolution."
+  },
+  "contract": {
+    "path": "formal/schemas/formal_contract.json",
+    "sha256": "25f47a3889d5272534d156ee590ff169491c49647e4a6d408dd2bb0e7cf2ba50"
+  },
+  "backend": {
+    "name": "symbiyosys",
+    "kind": "symbiyosys",
+    "version": "SBY v0.71"
+  },
+  "summary": {
+    "overall": "PASS",
+    "properties": 5,
+    "requirements": 5,
+    "proven": 2,
+    "bmc_pass": 2,
+    "covered": 1,
+    "not_reached_within_bound": 0,
+    "unreachable": 0,
+    "assumed": 0,
+    "vacuous": 0,
+    "partial": 0,
+    "incomplete_obligations": 0,
+    "fail": 0,
+    "error": 0,
+    "timeout": 0,
+    "statuses": {
+      "BMC_PASS": 2,
+      "PROVEN": 2,
+      "COVERED": 1
+    }
+  },
+  "properties": [
+    {
+      "id": "PRP-REQ-001-01",
+      "kind": "reset_value",
+      "role": "assert",
+      "mode": "assert",
+      "depth": 12,
+      "reset_cycles": 2,
+      "timeout_s": 300,
+      "backend": "symbiyosys",
+      "bmc": {
+        "result": "pass",
+        "line": "SBY  8:58:50 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_001_01/bmc] DONE (PASS, rc=0)",
+        "returncode": 0,
+        "timed_out": false,
+        "elapsed_s": 0.136,
+        "script": "formal/build/sby/prp_req_001_01/bmc.sby",
+        "log": "formal/reports/logs/prp_req_001_01.bmc.log"
+      },
+      "induction": null,
+      "counterexample": [],
+      "status": "BMC_PASS",
+      "error": "",
+      "elapsed_s": 0.136,
+      "req": "REQ-001",
+      "feature": "F03",
+      "title": "Domain A reset clears the captured request",
+      "severity": "error",
+      "evidence": {
+        "section": "4.1 Domain A request capture",
+        "quote": "While rst_a_n is low, dbg_req_a shall be 0."
+      },
+      "tags": [
+        "reset",
+        "domain-a"
+      ],
+      "obligation": null,
+      "owner": null,
+      "intent": null,
+      "proof": null,
+      "configurations": null,
+      "delay_source": null,
+      "when": null,
+      "expr": "dbg_req_a == 1'b0",
+      "trigger": null,
+      "response": null,
+      "min_delay": null,
+      "max_delay": null,
+      "signal": null,
+      "cycles": null,
+      "disable_reset": false,
+      "clock": "clk_a",
+      "reset": "rst_a",
+      "domain": null,
+      "run_id": "0256981b4dabf559",
+      "config": {
+        "design": "dual_clock",
+        "top": "dual_clock",
+        "parameters": {},
+        "backend": "symbiyosys",
+        "backend_kind": "symbiyosys",
+        "depth": 12,
+        "reset_cycles": 2,
+        "clock": "clk_a",
+        "reset": "rst_a",
+        "domain": null
+      },
+      "semantic": {
+        "id": "PRP-REQ-001-01",
+        "req": "REQ-001",
+        "feature": "F03",
+        "kind": "reset_value",
+        "role": "assert",
+        "title": "Domain A reset clears the captured request",
+        "expr": "dbg_req_a == 1'b0",
+        "disable_reset": false,
+        "severity": "error",
+        "tags": [
+          "reset",
+          "domain-a"
+        ],
+        "evidence": {
+          "section": "4.1 Domain A request capture",
+          "quote": "While rst_a_n is low, dbg_req_a shall be 0."
+        },
+        "clock": "clk_a",
+        "reset": "rst_a"
+      },
+      "semantic_sha256": "8674c699c1a17b8e28dde92a17089c03088a0329c6455cf4aeed6aa70f5eaf87",
+      "artifact_hashes": {
+        "contract_sha256": "25f47a3889d5272534d156ee590ff169491c49647e4a6d408dd2bb0e7cf2ba50",
+        "bundle_sha256": "29907095b0dc688b1167ff2c3ac812b43d212ce123bde126398fc907cd6a24ad",
+        "harness_sha256": "38e05272acb778ee4c0b1cf876de8a9f5f2ffa608f1f7742af57cc0c357ac518",
+        "property_sha256": "ad9f3a850fb167abe3312b270e584a1e1269914eec0bbdf4794c5f32eb6d365e",
+        "assumption_set_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "status_reason": "No counterexample was found within the bounded search, but induction did not prove the property; this is bounded evidence, not an unbounded proof. BMC: SBY  8:58:50 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_001_01/bmc] DONE (PASS, rc=0)",
+      "triage": "BMC passed within the depth but induction did not prove the property. This is not a proof; increase depth, add invariants, or inspect the induction log."
+    },
+    {
+      "id": "PRP-REQ-002-01",
+      "kind": "next",
+      "role": "assert",
+      "mode": "assert",
+      "depth": 12,
+      "reset_cycles": 2,
+      "timeout_s": 300,
+      "backend": "symbiyosys",
+      "bmc": {
+        "result": "pass",
+        "line": "SBY  8:58:50 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_002_01/bmc] DONE (PASS, rc=0)",
+        "returncode": 0,
+        "timed_out": false,
+        "elapsed_s": 0.123,
+        "script": "formal/build/sby/prp_req_002_01/bmc.sby",
+        "log": "formal/reports/logs/prp_req_002_01.bmc.log"
+      },
+      "induction": {
+        "result": "pass",
+        "line": "SBY  8:58:50 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_002_01/induct] DONE (PASS, rc=0)",
+        "returncode": 0,
+        "timed_out": false,
+        "elapsed_s": 0.121,
+        "script": "formal/build/sby/prp_req_002_01/induct.sby",
+        "log": "formal/reports/logs/prp_req_002_01.induct.log"
+      },
+      "counterexample": [],
+      "status": "PROVEN",
+      "error": "",
+      "elapsed_s": 0.244,
+      "req": "REQ-002",
+      "feature": "F01",
+      "title": "Domain A captures a request on the next clock edge",
+      "severity": "error",
+      "evidence": {
+        "section": "4.1 Domain A request capture",
+        "quote": "When i_req is 1 and dbg_req_a is 0, dbg_req_a shall be 1 on the next rising edge of clk_a."
+      },
+      "tags": [
+        "capture",
+        "domain-a"
+      ],
+      "obligation": null,
+      "owner": null,
+      "intent": null,
+      "proof": null,
+      "configurations": null,
+      "delay_source": null,
+      "when": null,
+      "expr": "dbg_req_a == 1'b1",
+      "trigger": "i_req && !dbg_req_a",
+      "response": null,
+      "min_delay": null,
+      "max_delay": null,
+      "signal": null,
+      "cycles": null,
+      "disable_reset": null,
+      "clock": "clk_a",
+      "reset": "rst_a",
+      "domain": null,
+      "run_id": "0256981b4dabf559",
+      "config": {
+        "design": "dual_clock",
+        "top": "dual_clock",
+        "parameters": {},
+        "backend": "symbiyosys",
+        "backend_kind": "symbiyosys",
+        "depth": 12,
+        "reset_cycles": 2,
+        "clock": "clk_a",
+        "reset": "rst_a",
+        "domain": null
+      },
+      "semantic": {
+        "id": "PRP-REQ-002-01",
+        "req": "REQ-002",
+        "feature": "F01",
+        "kind": "next",
+        "role": "assert",
+        "title": "Domain A captures a request on the next clock edge",
+        "expr": "dbg_req_a == 1'b1",
+        "trigger": "i_req && !dbg_req_a",
+        "severity": "error",
+        "tags": [
+          "capture",
+          "domain-a"
+        ],
+        "evidence": {
+          "section": "4.1 Domain A request capture",
+          "quote": "When i_req is 1 and dbg_req_a is 0, dbg_req_a shall be 1 on the next rising edge of clk_a."
+        },
+        "clock": "clk_a",
+        "reset": "rst_a"
+      },
+      "semantic_sha256": "ff0e0cf1af0431b09913f1a6828ff79f1becd954966c2529cc89ac200e32a598",
+      "artifact_hashes": {
+        "contract_sha256": "25f47a3889d5272534d156ee590ff169491c49647e4a6d408dd2bb0e7cf2ba50",
+        "bundle_sha256": "29907095b0dc688b1167ff2c3ac812b43d212ce123bde126398fc907cd6a24ad",
+        "harness_sha256": "38e05272acb778ee4c0b1cf876de8a9f5f2ffa608f1f7742af57cc0c357ac518",
+        "property_sha256": "f7db5f9680f8ca53e76d1d7fbf19af8a4b10643a1e4a37dd548e71f5eef14c07",
+        "assumption_set_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "status_reason": "The base case passed and the induction step proved the property for all reachable states under the recorded assumptions and configuration. BMC: SBY  8:58:50 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_002_01/bmc] DONE (PASS, rc=0) Induction: SBY  8:58:50 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_002_01/induct] DONE (PASS, rc=0)",
+      "triage": "Temporal induction succeeded after a passing BMC base case."
+    },
+    {
+      "id": "PRP-REQ-003-01",
+      "kind": "reset_value",
+      "role": "assert",
+      "mode": "assert",
+      "depth": 12,
+      "reset_cycles": 3,
+      "timeout_s": 300,
+      "backend": "symbiyosys",
+      "bmc": {
+        "result": "pass",
+        "line": "SBY  8:58:50 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_003_01/bmc] DONE (PASS, rc=0)",
+        "returncode": 0,
+        "timed_out": false,
+        "elapsed_s": 0.119,
+        "script": "formal/build/sby/prp_req_003_01/bmc.sby",
+        "log": "formal/reports/logs/prp_req_003_01.bmc.log"
+      },
+      "induction": null,
+      "counterexample": [],
+      "status": "BMC_PASS",
+      "error": "",
+      "elapsed_s": 0.119,
+      "req": "REQ-003",
+      "feature": "F03",
+      "title": "Domain B reset clears the acknowledge",
+      "severity": "error",
+      "evidence": {
+        "section": "4.2 Domain B synchronization and acknowledge",
+        "quote": "While rst_b_n is low, o_ack shall be 0."
+      },
+      "tags": [
+        "reset",
+        "domain-b"
+      ],
+      "obligation": null,
+      "owner": null,
+      "intent": null,
+      "proof": null,
+      "configurations": null,
+      "delay_source": null,
+      "when": null,
+      "expr": "o_ack == 1'b0",
+      "trigger": null,
+      "response": null,
+      "min_delay": null,
+      "max_delay": null,
+      "signal": null,
+      "cycles": null,
+      "disable_reset": false,
+      "clock": "clk_b",
+      "reset": "rst_b",
+      "domain": null,
+      "run_id": "0256981b4dabf559",
+      "config": {
+        "design": "dual_clock",
+        "top": "dual_clock",
+        "parameters": {},
+        "backend": "symbiyosys",
+        "backend_kind": "symbiyosys",
+        "depth": 12,
+        "reset_cycles": 3,
+        "clock": "clk_b",
+        "reset": "rst_b",
+        "domain": null
+      },
+      "semantic": {
+        "id": "PRP-REQ-003-01",
+        "req": "REQ-003",
+        "feature": "F03",
+        "kind": "reset_value",
+        "role": "assert",
+        "title": "Domain B reset clears the acknowledge",
+        "expr": "o_ack == 1'b0",
+        "disable_reset": false,
+        "severity": "error",
+        "tags": [
+          "reset",
+          "domain-b"
+        ],
+        "evidence": {
+          "section": "4.2 Domain B synchronization and acknowledge",
+          "quote": "While rst_b_n is low, o_ack shall be 0."
+        },
+        "clock": "clk_b",
+        "reset": "rst_b"
+      },
+      "semantic_sha256": "10530ffab22f167204c3bc41ddebf2c3a2f1acb0ed951f5fe63be739ce0ced07",
+      "artifact_hashes": {
+        "contract_sha256": "25f47a3889d5272534d156ee590ff169491c49647e4a6d408dd2bb0e7cf2ba50",
+        "bundle_sha256": "29907095b0dc688b1167ff2c3ac812b43d212ce123bde126398fc907cd6a24ad",
+        "harness_sha256": "38e05272acb778ee4c0b1cf876de8a9f5f2ffa608f1f7742af57cc0c357ac518",
+        "property_sha256": "be15edf5a2c9323d73c76f40874171f2e718f871d0f450a8883850cdc81df77a",
+        "assumption_set_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "status_reason": "No counterexample was found within the bounded search, but induction did not prove the property; this is bounded evidence, not an unbounded proof. BMC: SBY  8:58:50 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_003_01/bmc] DONE (PASS, rc=0)",
+      "triage": "BMC passed within the depth but induction did not prove the property. This is not a proof; increase depth, add invariants, or inspect the induction log."
+    },
+    {
+      "id": "PRP-REQ-004-01",
+      "kind": "next",
+      "role": "assert",
+      "mode": "assert",
+      "depth": 12,
+      "reset_cycles": 3,
+      "timeout_s": 300,
+      "backend": "symbiyosys",
+      "bmc": {
+        "result": "pass",
+        "line": "SBY  8:58:51 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_004_01/bmc] DONE (PASS, rc=0)",
+        "returncode": 0,
+        "timed_out": false,
+        "elapsed_s": 0.122,
+        "script": "formal/build/sby/prp_req_004_01/bmc.sby",
+        "log": "formal/reports/logs/prp_req_004_01.bmc.log"
+      },
+      "induction": {
+        "result": "pass",
+        "line": "SBY  8:58:51 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_004_01/induct] DONE (PASS, rc=0)",
+        "returncode": 0,
+        "timed_out": false,
+        "elapsed_s": 0.118,
+        "script": "formal/build/sby/prp_req_004_01/induct.sby",
+        "log": "formal/reports/logs/prp_req_004_01.induct.log"
+      },
+      "counterexample": [],
+      "status": "PROVEN",
+      "error": "",
+      "elapsed_s": 0.24,
+      "req": "REQ-004",
+      "feature": "F02",
+      "title": "Domain B acknowledges a synchronized request",
+      "severity": "error",
+      "evidence": {
+        "section": "4.2 Domain B synchronization and acknowledge",
+        "quote": "When the synchronized request dbg_req_b_sync is 1 and o_ack is 0, o_ack shall be 1 on the next rising edge of clk_b."
+      },
+      "tags": [
+        "acknowledge",
+        "domain-b"
+      ],
+      "obligation": null,
+      "owner": null,
+      "intent": null,
+      "proof": null,
+      "configurations": null,
+      "delay_source": null,
+      "when": null,
+      "expr": "o_ack == 1'b1",
+      "trigger": "dbg_req_b_sync && !o_ack",
+      "response": null,
+      "min_delay": null,
+      "max_delay": null,
+      "signal": null,
+      "cycles": null,
+      "disable_reset": null,
+      "clock": "clk_b",
+      "reset": "rst_b",
+      "domain": null,
+      "run_id": "0256981b4dabf559",
+      "config": {
+        "design": "dual_clock",
+        "top": "dual_clock",
+        "parameters": {},
+        "backend": "symbiyosys",
+        "backend_kind": "symbiyosys",
+        "depth": 12,
+        "reset_cycles": 3,
+        "clock": "clk_b",
+        "reset": "rst_b",
+        "domain": null
+      },
+      "semantic": {
+        "id": "PRP-REQ-004-01",
+        "req": "REQ-004",
+        "feature": "F02",
+        "kind": "next",
+        "role": "assert",
+        "title": "Domain B acknowledges a synchronized request",
+        "expr": "o_ack == 1'b1",
+        "trigger": "dbg_req_b_sync && !o_ack",
+        "severity": "error",
+        "tags": [
+          "acknowledge",
+          "domain-b"
+        ],
+        "evidence": {
+          "section": "4.2 Domain B synchronization and acknowledge",
+          "quote": "When the synchronized request dbg_req_b_sync is 1 and o_ack is 0, o_ack shall be 1 on the next rising edge of clk_b."
+        },
+        "clock": "clk_b",
+        "reset": "rst_b"
+      },
+      "semantic_sha256": "9662f51cb4570f380fa6b739a1baa384587f160b78819d998357bc7e1a973418",
+      "artifact_hashes": {
+        "contract_sha256": "25f47a3889d5272534d156ee590ff169491c49647e4a6d408dd2bb0e7cf2ba50",
+        "bundle_sha256": "29907095b0dc688b1167ff2c3ac812b43d212ce123bde126398fc907cd6a24ad",
+        "harness_sha256": "38e05272acb778ee4c0b1cf876de8a9f5f2ffa608f1f7742af57cc0c357ac518",
+        "property_sha256": "17175ae287a4e28a42febd8ea96625bd5dabbb3f04584af816a243e1d8b0dea2",
+        "assumption_set_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "status_reason": "The base case passed and the induction step proved the property for all reachable states under the recorded assumptions and configuration. BMC: SBY  8:58:51 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_004_01/bmc] DONE (PASS, rc=0) Induction: SBY  8:58:51 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_004_01/induct] DONE (PASS, rc=0)",
+      "triage": "Temporal induction succeeded after a passing BMC base case."
+    },
+    {
+      "id": "COV-REQ-005-01",
+      "kind": "cover",
+      "role": "cover",
+      "mode": "cover",
+      "depth": 12,
+      "reset_cycles": 3,
+      "timeout_s": 300,
+      "backend": "symbiyosys",
+      "bmc": {
+        "result": "pass",
+        "line": "SBY  8:58:51 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/cov_req_005_01/bmc] DONE (PASS, rc=0)",
+        "returncode": 0,
+        "timed_out": false,
+        "elapsed_s": 0.127,
+        "script": "formal/build/sby/cov_req_005_01/bmc.sby",
+        "log": "formal/reports/logs/cov_req_005_01.bmc.log"
+      },
+      "induction": null,
+      "counterexample": [],
+      "status": "COVERED",
+      "error": "",
+      "elapsed_s": 0.127,
+      "status_reason": "The solver found a witness trace that reaches the cover condition within the configured bound. BMC: SBY  8:58:51 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/cov_req_005_01/bmc] DONE (PASS, rc=0)",
+      "req": "REQ-005",
+      "feature": "F02",
+      "title": "A synchronized acknowledge is reachable",
+      "severity": "info",
+      "evidence": {
+        "section": "4.3 Verification scenarios",
+        "quote": "A cycle with dbg_req_b_sync 1 and o_ack 1 shall be reachable after reset in domain B."
+      },
+      "tags": [
+        "coverage",
+        "domain-b"
+      ],
+      "obligation": null,
+      "owner": null,
+      "intent": null,
+      "proof": null,
+      "configurations": null,
+      "delay_source": null,
+      "when": null,
+      "expr": "dbg_req_b_sync && o_ack",
+      "trigger": null,
+      "response": null,
+      "min_delay": null,
+      "max_delay": null,
+      "signal": null,
+      "cycles": null,
+      "disable_reset": null,
+      "clock": null,
+      "reset": null,
+      "domain": "b",
+      "run_id": "0256981b4dabf559",
+      "config": {
+        "design": "dual_clock",
+        "top": "dual_clock",
+        "parameters": {},
+        "backend": "symbiyosys",
+        "backend_kind": "symbiyosys",
+        "depth": 12,
+        "reset_cycles": 3,
+        "clock": null,
+        "reset": null,
+        "domain": "b"
+      },
+      "semantic": {
+        "id": "COV-REQ-005-01",
+        "req": "REQ-005",
+        "feature": "F02",
+        "kind": "cover",
+        "role": "cover",
+        "title": "A synchronized acknowledge is reachable",
+        "expr": "dbg_req_b_sync && o_ack",
+        "severity": "info",
+        "tags": [
+          "coverage",
+          "domain-b"
+        ],
+        "evidence": {
+          "section": "4.3 Verification scenarios",
+          "quote": "A cycle with dbg_req_b_sync 1 and o_ack 1 shall be reachable after reset in domain B."
+        },
+        "domain": "b"
+      },
+      "semantic_sha256": "17a28c4f4e7cf3a1695b4b29393d9be5f9c49dec53937ee45ca251a779ff46b7",
+      "artifact_hashes": {
+        "contract_sha256": "25f47a3889d5272534d156ee590ff169491c49647e4a6d408dd2bb0e7cf2ba50",
+        "bundle_sha256": "29907095b0dc688b1167ff2c3ac812b43d212ce123bde126398fc907cd6a24ad",
+        "harness_sha256": "38e05272acb778ee4c0b1cf876de8a9f5f2ffa608f1f7742af57cc0c357ac518",
+        "property_sha256": "1f47be047577f6a5a5a1995df50474f87d8555b7d927dc3b512f3d7f7ba02763",
+        "assumption_set_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "triage": "A witness was found within the depth."
+    }
+  ],
+  "requirements": [
+    {
+      "id": "REQ-001",
+      "feature": "F03",
+      "text": "While rst_a_n is low, dbg_req_a shall be 0.",
+      "category": "reset",
+      "sva_hint": "property",
+      "disposition": "formalized",
+      "reason": "The domain A reset value is a state invariant checked on the clk_a reset domain.",
+      "limitations": null,
+      "evidence": {
+        "section": "4.1 Domain A request capture",
+        "quote": "While rst_a_n is low, dbg_req_a shall be 0."
+      },
+      "properties": [
+        "PRP-REQ-001-01"
+      ],
+      "severity": "error",
+      "status": "BMC_PASS",
+      "status_reason": "No counterexample was found within the bounded search, but induction did not prove the property; this is bounded evidence, not an unbounded proof."
+    },
+    {
+      "id": "REQ-002",
+      "feature": "F01",
+      "text": "When i_req is 1 and dbg_req_a is 0, dbg_req_a shall be 1 on the next rising edge of clk_a.",
+      "category": "functional",
+      "sva_hint": "property",
+      "disposition": "formalized",
+      "reason": "The capture transition is a next-cycle relation in the clk_a domain.",
+      "limitations": null,
+      "evidence": {
+        "section": "4.1 Domain A request capture",
+        "quote": "When i_req is 1 and dbg_req_a is 0, dbg_req_a shall be 1 on the next rising edge of clk_a."
+      },
+      "properties": [
+        "PRP-REQ-002-01"
+      ],
+      "severity": "error",
+      "status": "PROVEN",
+      "status_reason": "The base case passed and the induction step proved the property for all reachable states under the recorded assumptions and configuration."
+    },
+    {
+      "id": "REQ-003",
+      "feature": "F03",
+      "text": "While rst_b_n is low, o_ack shall be 0.",
+      "category": "reset",
+      "sva_hint": "property",
+      "disposition": "formalized",
+      "reason": "The domain B reset value is a state invariant checked on the clk_b reset domain.",
+      "limitations": null,
+      "evidence": {
+        "section": "4.2 Domain B synchronization and acknowledge",
+        "quote": "While rst_b_n is low, o_ack shall be 0."
+      },
+      "properties": [
+        "PRP-REQ-003-01"
+      ],
+      "severity": "error",
+      "status": "BMC_PASS",
+      "status_reason": "No counterexample was found within the bounded search, but induction did not prove the property; this is bounded evidence, not an unbounded proof."
+    },
+    {
+      "id": "REQ-004",
+      "feature": "F02",
+      "text": "When dbg_req_b_sync is 1 and o_ack is 0, o_ack shall be 1 on the next rising edge of clk_b.",
+      "category": "functional",
+      "sva_hint": "property",
+      "disposition": "formalized",
+      "reason": "The acknowledge transition is a next-cycle relation in the clk_b domain.",
+      "limitations": null,
+      "evidence": {
+        "section": "4.2 Domain B synchronization and acknowledge",
+        "quote": "When the synchronized request dbg_req_b_sync is 1 and o_ack is 0, o_ack shall be 1 on the next rising edge of clk_b."
+      },
+      "properties": [
+        "PRP-REQ-004-01"
+      ],
+      "severity": "error",
+      "status": "PROVEN",
+      "status_reason": "The base case passed and the induction step proved the property for all reachable states under the recorded assumptions and configuration."
+    },
+    {
+      "id": "REQ-005",
+      "feature": "F02",
+      "text": "A cycle with dbg_req_b_sync 1 and o_ack 1 shall be reachable after reset in domain B.",
+      "category": "verification",
+      "sva_hint": "cover",
+      "disposition": "formalized",
+      "reason": "The reachability scenario is checked by a cover property in the clk_b domain.",
+      "limitations": null,
+      "evidence": {
+        "section": "4.3 Verification scenarios",
+        "quote": "A cycle with dbg_req_b_sync 1 and o_ack 1 shall be reachable after reset in domain B."
+      },
+      "properties": [
+        "COV-REQ-005-01"
+      ],
+      "severity": "info",
+      "status": "COVERED",
+      "status_reason": "The solver found a witness trace that reaches the cover condition within the configured bound."
+    }
+  ],
+  "features": [
+    {
+      "id": "F01",
+      "text": "Request capture in clock domain A",
+      "class": "Mandatory",
+      "requirements": [
+        "REQ-002"
+      ],
+      "status": "OK",
+      "counts": {
+        "total": 1,
+        "formalized": 1,
+        "partially_formalized": 0,
+        "assumption": 0,
+        "not_formalizable": 0,
+        "out_of_scope": 0,
+        "missing": 0
+      },
+      "gaps": [],
+      "unformalized": [],
+      "warnings": []
+    },
+    {
+      "id": "F02",
+      "text": "Request synchronization and acknowledge in clock domain B",
+      "class": "Mandatory",
+      "requirements": [
+        "REQ-004",
+        "REQ-005"
+      ],
+      "status": "OK",
+      "counts": {
+        "total": 2,
+        "formalized": 2,
+        "partially_formalized": 0,
+        "assumption": 0,
+        "not_formalizable": 0,
+        "out_of_scope": 0,
+        "missing": 0
+      },
+      "gaps": [],
+      "unformalized": [],
+      "warnings": []
+    },
+    {
+      "id": "F03",
+      "text": "Independent asynchronous resets for both domains",
+      "class": "Mandatory",
+      "requirements": [
+        "REQ-001",
+        "REQ-003"
+      ],
+      "status": "OK",
+      "counts": {
+        "total": 2,
+        "formalized": 2,
+        "partially_formalized": 0,
+        "assumption": 0,
+        "not_formalizable": 0,
+        "out_of_scope": 0,
+        "missing": 0
+      },
+      "gaps": [],
+      "unformalized": [],
+      "warnings": []
+    }
+  ],
+  "assumptions": [],
+  "limitations": [
+    "SymbiYosys/smtbmc BMC is bounded; a passing BMC is not a proof.",
+    "SymbiYosys `prove` uses k-induction; properties that are not inductive remain unproven even when the BMC base case passes.",
+    "The run covers the configuration in scope.configuration, forces reset for the first 2 cycle(s), and checks up to depth 12.",
+    "Cover properties report reachability within the BMC depth, not exhaustive reachability.",
+    "The generated standard SVA file is not executed by this run; it is provided for commercial tools.",
+    "Assumptions are environment rules. A VACUOUS assumption means its active condition was not reached."
+  ],
+  "elapsed_s": 0.971,
+  "artifacts": {
+    "harness": "formal/src/generated/fv_manifest.json",
+    "sva_checker": "formal/src/generated/fv_sva_checker.sv",
+    "results": "formal/results/formal_results.json",
+    "report_md": "formal/reports/report.md",
+    "report_json": "formal/reports/report.json",
+    "junit": "formal/reports/junit.xml",
+    "review_json": "formal/reports/sva_review.json",
+    "review_md": "formal/reports/sva_review.md",
+    "plan_json": "formal/reports/verification_plan.json",
+    "plan_md": "formal/reports/verification_plan.md",
+    "ledger_json": "formal/reports/completeness_ledger.json",
+    "ledger_md": "formal/reports/completeness_ledger.md"
+  },
+  "review": {
+    "overall": "WARN",
+    "summary": {
+      "findings": 2,
+      "errors": 0,
+      "warnings": 2,
+      "info": 0,
+      "categories": {
+        "coverage": 2
+      }
+    },
+    "artifacts": {
+      "review_json": "formal/reports/sva_review.json",
+      "review_md": "formal/reports/sva_review.md"
+    }
+  },
+  "review_findings": [
+    {
+      "id": "REV-001",
+      "code": "TRIGGER_UNCOVERED",
+      "severity": "warning",
+      "category": "coverage",
+      "property": "PRP-REQ-002-01",
+      "requirement": "REQ-002",
+      "owner": "verification_engineer",
+      "message": "PRP-REQ-002-01 asserts a trigger but no cover reaches that trigger.",
+      "recommendation": "Add a cover property with the same trigger; otherwise a bounded pass may be vacuous."
+    },
+    {
+      "id": "REV-002",
+      "code": "TRIGGER_UNCOVERED",
+      "severity": "warning",
+      "category": "coverage",
+      "property": "PRP-REQ-004-01",
+      "requirement": "REQ-004",
+      "owner": "verification_engineer",
+      "message": "PRP-REQ-004-01 asserts a trigger but no cover reaches that trigger.",
+      "recommendation": "Add a cover property with the same trigger; otherwise a bounded pass may be vacuous."
+    }
+  ],
+  "verification_plan": {
+    "summary": {
+      "requirements": 5,
+      "exclusions": 0
+    },
+    "artifacts": {
+      "plan_json": "formal/reports/verification_plan.json",
+      "plan_md": "formal/reports/verification_plan.md"
+    }
+  },
+  "completeness_ledger": {
+    "summary": {
+      "normative_statements": 8,
+      "mapped": 5,
+      "unmapped": 3,
+      "coverage_pct": 62.5
+    },
+    "artifacts": {
+      "ledger_json": "formal/reports/completeness_ledger.json",
+      "ledger_md": "formal/reports/completeness_ledger.md"
+    }
+  },
+  "provenance": {
+    "generated_by": "formal-sva/fv_run.py",
+    "run_id": "0256981b4dabf559",
+    "model": {
+      "id": "unknown",
+      "provider": "unknown",
+      "note": "populated by agent when available"
+    },
+    "prompt_template_versions": {
+      "contract.md": "43ed1856bbd35d031e327115442e7b3842212e9b21522c7e0915f0687fe0c8ef",
+      "extract.md": "ceae0682116ece15b08fa4ed670ad9ab26452fcf3283456b4f2681bcd9f0efed"
+    },
+    "input_hashes": {
+      "contract_sha256": "25f47a3889d5272534d156ee590ff169491c49647e4a6d408dd2bb0e7cf2ba50",
+      "bundle_sha256": "29907095b0dc688b1167ff2c3ac812b43d212ce123bde126398fc907cd6a24ad",
+      "harness_sha256": "38e05272acb778ee4c0b1cf876de8a9f5f2ffa608f1f7742af57cc0c357ac518",
+      "tools_sha256": "5b75cd23599a2abc4769428df996cf43d3ef9d01d0dfe1013e5697be0ce40406"
+    },
+    "tool_versions": {
+      "skill_version": "2.0.0",
+      "backend": {
+        "name": "symbiyosys",
+        "kind": "symbiyosys",
+        "version": "SBY v0.71"
+      }
+    },
+    "validation_feedback": [],
+    "repair_history": [],
+    "trust_boundary": {
+      "spec_and_rtl_are_data": true,
+      "tool_logs_are_data": true,
+      "untrusted_inputs_must_not_override_policy": true
+    }
+  },
+  "signoff": {
+    "schema_version": "1.1",
+    "execution_complete": true,
+    "proof_complete": false,
+    "reachability_checked": true,
+    "environment_checked": true,
+    "review_clean": false,
+    "regression_clean": true,
+    "no_requirement_gaps": true,
+    "strict_signoff_ready": true,
+    "signoff_ready": true,
+    "blocking_reasons": [],
+    "warnings": [
+      "SVA/constraint review has warnings",
+      "completeness ledger has 3 unmapped normative statement(s)"
+    ],
+    "exceptions_applied": []
+  }
+}

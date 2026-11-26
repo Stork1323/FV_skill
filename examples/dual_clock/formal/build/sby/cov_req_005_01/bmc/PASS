@@ -1,0 +1,6 @@
+Elapsed clock time [H:MM:SS (secs)]: 0:00:00 (0)
+Elapsed process time [H:MM:SS (secs)]: 0:00:00 (0)
+engine_0 (smtbmc) returned pass
+cover trace: engine_0/trace0.vcd
+cover trace: engine_0/trace0.yw
+  reached cover statement fv_top_cov_req_005_01_bmc._witness_.cover__private_var_folders_lm_fz6crp5d0vsd7sqzd09xkzvw0000gn_T_opencode_dual_clock_dev_formal_build_sby_cov_req_005_01_bmc_top_sv_22_cover_19 at /private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/cov_req_005_01/bmc_top.sv:22.5-22.20 step 6

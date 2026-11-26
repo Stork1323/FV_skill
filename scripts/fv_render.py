@@ -129,8 +129,19 @@ def _resolve_named(obj_map: list[dict[str, Any]], key: str | None) -> dict[str, 
     return None
 
 
+def _domain_entry(entries: list[dict[str, Any]], domain: str) -> dict[str, Any] | None:
+    for entry in entries:
+        if str(entry.get("domain") or "") == domain:
+            return entry
+    return None
+
+
 def _design_clock(design: dict[str, Any], prop: dict[str, Any] | None = None) -> tuple[str, str]:
     clock = design.get("clock") or {}
+    if prop and prop.get("domain") and not prop.get("clock"):
+        resolved = _domain_entry(list(design.get("clocks") or []), str(prop["domain"]))
+        if resolved:
+            clock = resolved
     if prop and prop.get("clock"):
         resolved = _resolve_named(list(design.get("clocks") or []), str(prop.get("clock")))
         if resolved:
@@ -148,6 +159,10 @@ def _design_clock(design: dict[str, Any], prop: dict[str, Any] | None = None) ->
 
 def _design_reset(design: dict[str, Any], prop: dict[str, Any] | None = None) -> tuple[str, str, str]:
     reset = design.get("reset") or {}
+    if prop and prop.get("domain") and not prop.get("reset"):
+        resolved = _domain_entry(list(design.get("resets") or []), str(prop["domain"]))
+        if resolved:
+            reset = resolved
     if prop and prop.get("reset"):
         resolved = _resolve_named(list(design.get("resets") or []), str(prop.get("reset")))
         if resolved:
@@ -167,6 +182,21 @@ def _design_reset(design: dict[str, Any], prop: dict[str, Any] | None = None) ->
 def _reset_active_expr(design: dict[str, Any], prop: dict[str, Any] | None = None) -> str:
     signal, active, _kind = _design_reset(design, prop)
     return f"!{signal}" if active == "low" else signal
+
+
+def _reset_cycles(design: dict[str, Any], prop: dict[str, Any] | None = None) -> int:
+    """Reset cycles of the property's reset domain (falls back to the default)."""
+    reset = design.get("reset") or {}
+    if prop and prop.get("domain") and not prop.get("reset"):
+        resolved = _domain_entry(list(design.get("resets") or []), str(prop["domain"]))
+        if resolved:
+            reset = resolved
+    if prop and prop.get("reset"):
+        resolved = _resolve_named(list(design.get("resets") or []), str(prop["reset"]))
+        if resolved:
+            reset = resolved
+    return int(reset.get("cycles") or design.get("reset_cycles") or
+               (design.get("reset") or {}).get("cycles") or 2)
 
 
 def _signal_info(signal: str, interface: dict[str, Any], where: str) -> dict[str, Any]:
@@ -862,25 +892,26 @@ def render(manifest: dict[str, Any], contract_path: Path | None = None,
         generated.extend([monitor_file, top_file])
 
         depth = int(prop.get("depth") or default_depth)
-        if depth <= reset_cycles:
+        prop_reset_cycles = _reset_cycles(design, prop)
+        if depth <= prop_reset_cycles:
             raise FvError(
                 f"property {pid}: depth {depth} must be greater than reset_cycles "
-                f"({reset_cycles}); use --depth or set formal.depth"
+                f"({prop_reset_cycles}) for its reset domain; use --depth or set formal.depth"
             )
-        if kind == "next" and depth < reset_cycles + 2:
+        if kind == "next" and depth < prop_reset_cycles + 2:
             raise FvError(
                 f"property {pid}: kind next needs depth >= reset_cycles + 2 "
-                f"({reset_cycles + 2})"
+                f"({prop_reset_cycles + 2})"
             )
-        if kind == "stability" and depth < reset_cycles + int(prop.get("cycles") or 1):
+        if kind == "stability" and depth < prop_reset_cycles + int(prop.get("cycles") or 1):
             raise FvError(
                 f"property {pid}: kind stability needs depth >= reset_cycles + cycles "
-                f"({reset_cycles + int(prop.get('cycles') or 1)})"
+                f"({prop_reset_cycles + int(prop.get('cycles') or 1)})"
             )
-        if kind == "response" and depth < reset_cycles + int(prop.get("max_delay") or 1):
+        if kind == "response" and depth < prop_reset_cycles + int(prop.get("max_delay") or 1):
             raise FvError(
                 f"property {pid}: kind response needs depth >= reset_cycles + max_delay "
-                f"({reset_cycles + int(prop.get('max_delay') or 1)})"
+                f"({prop_reset_cycles + int(prop.get('max_delay') or 1)})"
             )
 
         if role in ("cover", "assume"):
@@ -897,6 +928,8 @@ def render(manifest: dict[str, Any], contract_path: Path | None = None,
                 skip = 1
             induction = bool(formal.get("induction", True)) and kind != "reset_value"
 
+        prop_clock, prop_edge = _design_clock(design, prop)
+        prop_reset_signal, prop_reset_active, prop_reset_kind = _design_reset(design, prop)
         prop_entries.append({
             "id": pid,
             "file_san": file_san,
@@ -912,7 +945,15 @@ def render(manifest: dict[str, Any], contract_path: Path | None = None,
             "monitor_file": rel_to(root, monitor_file),
             "top_file": rel_to(root, top_file),
             "depth": depth,
-            "reset_cycles": reset_cycles,
+            "clock": prop.get("clock"),
+            "reset": prop.get("reset"),
+            "domain": prop.get("domain"),
+            "clock_signal": prop_clock,
+            "clock_edge": prop_edge,
+            "reset_signal": prop_reset_signal,
+            "reset_active": prop_reset_active,
+            "reset_kind": prop_reset_kind,
+            "reset_cycles": prop_reset_cycles,
             "skip": skip,
             "induction": induction,
             "cover_signal": "fv_cover" if cover else None,
@@ -932,6 +973,9 @@ def render(manifest: dict[str, Any], contract_path: Path | None = None,
             "clock": {"signal": clock, "edge": edge},
             "reset": {"signal": reset_signal, "active": reset_active, "kind": reset_kind,
                       "cycles": reset_cycles},
+            "clocks": design.get("clocks") or [],
+            "resets": design.get("resets") or [],
+            "domains": design.get("domains") or [],
             "parameters": design.get("parameters") or {},
             "reset_cycles": reset_cycles,
             "inputs": [p["name"] for p in interface.get("ports") or []

@@ -1,0 +1,293 @@
+{
+  "schema_version": "1.0",
+  "updated_at": "2026-11-26T01:59:04+00:00",
+  "steps": {
+    "extract": {
+      "status": "ok",
+      "timestamp": "2026-11-26T01:58:07+00:00",
+      "inputs": {
+        "spec_markdown": {
+          "path": "/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/spec/spec.md",
+          "exists": true,
+          "sha256": "05c19cf9e3f0cb921452d82bfbcc0b58f1420b6777947d671bbbdb2596b64ab4"
+        },
+        "requirements": {
+          "path": "/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/spec/requirements.md",
+          "exists": true,
+          "sha256": "c0cd1c71c7e2e27784373ad315eb2f1aad4da79901307a058909b9ebf7fb3e37"
+        },
+        "rules": {
+          "path": "/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/rules",
+          "kind": "dir",
+          "files": 9,
+          "sha256": "a5558924698bce464a93a761fe06c2b7d98449ba3314eb37d7307eceec01ff4d"
+        }
+      },
+      "outputs": {
+        "requirements": {
+          "path": "/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/spec/requirements.md",
+          "exists": true,
+          "sha256": "c0cd1c71c7e2e27784373ad315eb2f1aad4da79901307a058909b9ebf7fb3e37"
+        },
+        "extraction": {
+          "path": "/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/spec/requirements.json",
+          "exists": true,
+          "sha256": "ced39f7fefb8312dfabc7c8f7a7fa0502633e995ef2cd7ab8ad124e4aa443fee"
+        },
+        "questions": {
+          "path": "/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/reports/questions.json",
+          "exists": true,
+          "sha256": "eb6a28ea14bd12a86f4ef339f1605d63dd43952afd03b94013d5cab21a25c644"
+        }
+      },
+      "extra": {}
+    },
+    "extract_approval": {
+      "status": "ok",
+      "timestamp": "2026-11-26T01:58:07+00:00",
+      "inputs": {},
+      "outputs": {},
+      "extra": {
+        "reviewer": "fixture-reviewer",
+        "requirements_sha256": "262ff2775ff5d2f045cee9897f289beeff9a8b0ab508d6b6cb03be5f7257e6e1"
+      }
+    },
+    "contract": {
+      "status": "ok",
+      "timestamp": "2026-11-26T01:58:35+00:00",
+      "inputs": {
+        "requirements": {
+          "path": "/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/spec/requirements.md",
+          "exists": true,
+          "sha256": "c0cd1c71c7e2e27784373ad315eb2f1aad4da79901307a058909b9ebf7fb3e37"
+        },
+        "extraction": {
+          "path": "/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/spec/requirements.json",
+          "exists": true,
+          "sha256": "ced39f7fefb8312dfabc7c8f7a7fa0502633e995ef2cd7ab8ad124e4aa443fee"
+        },
+        "bundle": {
+          "path": "/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/schemas/input_bundle.json",
+          "exists": true,
+          "sha256": "29907095b0dc688b1167ff2c3ac812b43d212ce123bde126398fc907cd6a24ad"
+        },
+        "contract": {
+          "path": "/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/schemas/formal_contract.json",
+          "exists": true,
+          "sha256": "25f47a3889d5272534d156ee590ff169491c49647e4a6d408dd2bb0e7cf2ba50"
+        },
+        "rules": {
+          "path": "/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/rules",
+          "kind": "dir",
+          "files": 9,
+          "sha256": "a5558924698bce464a93a761fe06c2b7d98449ba3314eb37d7307eceec01ff4d"
+        }
+      },
+      "outputs": {
+        "contract": {
+          "path": "/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/schemas/formal_contract.json",
+          "exists": true,
+          "sha256": "25f47a3889d5272534d156ee590ff169491c49647e4a6d408dd2bb0e7cf2ba50"
+        }
+      },
+      "extra": {
+        "errors": 0,
+        "warnings": 1,
+        "stats": {
+          "requirements": 5,
+          "features": 3,
+          "properties": 5,
+          "assertions": 4,
+          "assumptions": 0,
+          "covers": 1,
+          "obligations": {
+            "bounded_response": 0,
+            "environment": 0,
+            "liveness": 0,
+            "reachability": 1,
+            "safety": 4,
+            "structural": 0
+          },
+          "owners": {
+            "dut": 4,
+            "environment": 0,
+            "verification": 1
+          },
+          "dispositions": {
+            "formalized": 5,
+            "partially_formalized": 0,
+            "not_formalizable": 0,
+            "assumption": 0,
+            "out_of_scope": 0
+          },
+          "clarity": {
+            "clear": 5,
+            "unclear": 0
+          },
+          "parameters": {},
+          "configurations": 1,
+          "reset_cycles": 2,
+          "depth": 12
+        }
+      }
+    },
+    "render": {
+      "status": "ok",
+      "timestamp": "2026-11-26T01:58:40+00:00",
+      "inputs": {
+        "contract": {
+          "path": "/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/schemas/formal_contract.json",
+          "exists": true,
+          "sha256": "25f47a3889d5272534d156ee590ff169491c49647e4a6d408dd2bb0e7cf2ba50"
+        },
+        "bundle": {
+          "path": "/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/schemas/input_bundle.json",
+          "exists": true,
+          "sha256": "29907095b0dc688b1167ff2c3ac812b43d212ce123bde126398fc907cd6a24ad"
+        },
+        "requirements": {
+          "path": "/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/spec/requirements.md",
+          "exists": true,
+          "sha256": "c0cd1c71c7e2e27784373ad315eb2f1aad4da79901307a058909b9ebf7fb3e37"
+        },
+        "rules": {
+          "path": "/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/rules",
+          "kind": "dir",
+          "files": 9,
+          "sha256": "a5558924698bce464a93a761fe06c2b7d98449ba3314eb37d7307eceec01ff4d"
+        },
+        "tools": {
+          "path": "/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/tools.json",
+          "exists": true,
+          "sha256": "5b75cd23599a2abc4769428df996cf43d3ef9d01d0dfe1013e5697be0ce40406"
+        }
+      },
+      "outputs": {
+        "sva": {
+          "path": "/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/src",
+          "kind": "dir",
+          "files": 12,
+          "sha256": "3dd1a4abfdd21f466f9c844f884cb14144150142b9c24dccdd046a0735178650"
+        }
+      },
+      "extra": {}
+    },
+    "run": {
+      "status": "ok",
+      "timestamp": "2026-11-26T01:58:51+00:00",
+      "inputs": {
+        "bundle": {
+          "path": "/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/schemas/input_bundle.json",
+          "exists": true,
+          "sha256": "29907095b0dc688b1167ff2c3ac812b43d212ce123bde126398fc907cd6a24ad"
+        },
+        "contract": {
+          "path": "/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/schemas/formal_contract.json",
+          "exists": true,
+          "sha256": "25f47a3889d5272534d156ee590ff169491c49647e4a6d408dd2bb0e7cf2ba50"
+        },
+        "rules": {
+          "path": "/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/rules",
+          "kind": "dir",
+          "files": 9,
+          "sha256": "a5558924698bce464a93a761fe06c2b7d98449ba3314eb37d7307eceec01ff4d"
+        },
+        "tools": {
+          "path": "/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/tools.json",
+          "exists": true,
+          "sha256": "5b75cd23599a2abc4769428df996cf43d3ef9d01d0dfe1013e5697be0ce40406"
+        }
+      },
+      "outputs": {
+        "results": {
+          "path": "/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/results/formal_results.json",
+          "exists": true,
+          "sha256": "f782af9af4e5f724c065a290d3f7659d647a6bc2989e7851ba777ce1b4c6edf9"
+        },
+        "reports": {
+          "path": "/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/reports",
+          "kind": "dir",
+          "files": 18,
+          "sha256": "89d196a5627865621965087464a4b9488f8210d63c949863939e287f9e7b1cba"
+        }
+      },
+      "extra": {
+        "summary": {
+          "overall": "PASS",
+          "properties": 5,
+          "requirements": 5,
+          "proven": 2,
+          "bmc_pass": 2,
+          "covered": 1,
+          "not_reached_within_bound": 0,
+          "unreachable": 0,
+          "assumed": 0,
+          "vacuous": 0,
+          "partial": 0,
+          "incomplete_obligations": 0,
+          "fail": 0,
+          "error": 0,
+          "timeout": 0,
+          "statuses": {
+            "BMC_PASS": 2,
+            "PROVEN": 2,
+            "COVERED": 1
+          }
+        }
+      }
+    },
+    "review": {
+      "status": "ok",
+      "timestamp": "2026-11-26T01:58:51+00:00",
+      "inputs": {
+        "results": {
+          "path": "/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/results/formal_results.json",
+          "exists": true,
+          "sha256": "f782af9af4e5f724c065a290d3f7659d647a6bc2989e7851ba777ce1b4c6edf9"
+        },
+        "contract": {
+          "path": "/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/schemas/formal_contract.json",
+          "exists": true,
+          "sha256": "25f47a3889d5272534d156ee590ff169491c49647e4a6d408dd2bb0e7cf2ba50"
+        }
+      },
+      "outputs": {
+        "review": {
+          "path": "/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/reports/sva_review.json",
+          "exists": true,
+          "sha256": "d5a6d68719029fc9259f8d383b32d7b5c5123408ec693d92f13c4130cf27a72a"
+        }
+      },
+      "extra": {
+        "overall": "WARN"
+      }
+    },
+    "regress": {
+      "status": "ok",
+      "timestamp": "2026-11-26T01:59:04+00:00",
+      "inputs": {
+        "results": {
+          "path": "/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/results/formal_results.json",
+          "exists": true,
+          "sha256": "f782af9af4e5f724c065a290d3f7659d647a6bc2989e7851ba777ce1b4c6edf9"
+        },
+        "contract": {
+          "path": "/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/schemas/formal_contract.json",
+          "exists": true,
+          "sha256": "25f47a3889d5272534d156ee590ff169491c49647e4a6d408dd2bb0e7cf2ba50"
+        }
+      },
+      "outputs": {
+        "reports": {
+          "path": "/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/reports",
+          "kind": "dir",
+          "files": 29,
+          "sha256": "d0e9e935bb958283517aec4cbd2cc0208cc3347bbfb13681299a318fe8040da2"
+        }
+      },
+      "extra": {
+        "overall": "PASS"
+      }
+    }
+  }
+}

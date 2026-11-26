@@ -7,7 +7,7 @@ run, so a failure or timeout is attributable to exactly one property.
 
 Yosys-specific facts encoded here (verified against Yosys 0.71):
 
-* ``read_verilog -formal -sv -DSYNTHESIS`` then ``prep -top ... -flatten``.
+* ``read_verilog -formal -sv`` then ``prep -top ... -flatten``.
 * ``async2sync`` is required before ``sat`` for designs with ``$adff``.
 * ``memory_map`` turns small inferred memories (FIFOs) into flops.
 * ``sat -set-at N signal value`` is 1-based.
@@ -36,7 +36,7 @@ from fv_common import (
     write_json,
     write_text,
 )
-from fv_render import RENDER_SCHEMA_VERSION
+from fv_render import RENDER_SCHEMA_VERSION, _design_reset, _reset_cycles
 
 GOOD_ASSERT = {"PROVEN", "BMC_PASS"}
 GOOD_COVER = {"COVERED"}
@@ -95,7 +95,7 @@ def harness_files(harness: dict[str, Any], prop: dict[str, Any]) -> list[Path]:
 
 def _read_command(harness: dict[str, Any], prop: dict[str, Any]) -> str:
     files = harness.get("files") or {}
-    parts = ["read_verilog -formal -sv -DSYNTHESIS"]
+    parts = ["read_verilog -formal -sv"]
     for inc in files.get("include_dirs") or []:
         parts.append(f"-I{_qpath(inc)}")
     for d in files.get("defines") or []:
@@ -118,19 +118,8 @@ def _prep_commands(harness: dict[str, Any], prop: dict[str, Any]) -> list[str]:
 
 def _reset_args(harness: dict[str, Any], prop: dict[str, Any], depth: int) -> list[str]:
     design = harness.get("design") or {}
-    reset = design.get("reset") or {}
-    # per-property reset domain
-    if prop.get("reset"):
-        for r in (design.get("resets") or []):
-            if str(r.get("name") or r.get("signal")) == str(prop.get("reset")):
-                reset = r
-                break
-        else:
-            # direct signal name
-            reset = {**reset, "signal": str(prop.get("reset"))}
-    signal = reset.get("signal")
-    active = reset.get("active", "low")
-    cycles = int(reset.get("cycles") or design.get("reset_cycles") or (design.get("reset") or {}).get("cycles") or 0)
+    signal, active, _kind = _design_reset(design, prop)
+    cycles = _reset_cycles(design, prop)
     if not signal:
         raise FvError("harness has no reset signal")
     if cycles < 2:
@@ -175,7 +164,7 @@ def _show_args(harness: dict[str, Any], prop: dict[str, Any]) -> list[str]:
 
 
 def _sat_line(harness: dict[str, Any], prop: dict[str, Any], depth: int,
-              induction: bool = False) -> str:
+              induction: bool = False, dump_vcd: Path | None = None) -> str:
     args = ["sat", "-seq", str(depth)]
     if induction:
         skip = int(prop.get("skip") or 1)
@@ -188,6 +177,8 @@ def _sat_line(harness: dict[str, Any], prop: dict[str, Any], depth: int,
         args.extend(_start_args(depth))
     if (harness.get("files") or {}).get("assumptions"):
         args.append("-set-assumes")
+    if dump_vcd is not None:
+        args.extend(["-dump_vcd", str(dump_vcd)])
     if prop.get("mode") in ("cover", "assume"):
         args.extend(["-prove", prop.get("cover_signal") or "fv_cover", "0"])
         if not induction:
@@ -289,11 +280,11 @@ def run_property(harness: dict[str, Any], prop: dict[str, Any],
     logs.mkdir(parents=True, exist_ok=True)
 
     actual_depth = int(depth or prop.get("depth") or formal.get("depth") or 12)
-    reset_cycles = int(design.get("reset_cycles") or (design.get("reset") or {}).get("cycles") or 0)
+    reset_cycles = int(prop.get("reset_cycles") or _reset_cycles(design, prop))
     if actual_depth <= reset_cycles:
         raise FvError(
             f"property {pid}: depth {actual_depth} must be greater than "
-            f"reset_cycles {reset_cycles}"
+            f"reset_cycles {reset_cycles} for its reset domain"
         )
     actual_timeout = int(timeout_s or formal.get("timeout_s") or 300)
     want_induction = bool(formal.get("induction", True) if induction is None else induction)
@@ -301,13 +292,15 @@ def run_property(harness: dict[str, Any], prop: dict[str, Any],
 
     read = _read_command(harness, prop)
     prep = "\n".join(_prep_commands(harness, prop))
-    bmc_script = read + "\n" + prep + "\n" + _sat_line(harness, prop, actual_depth, False) + "\n"
+    bmc_vcd = build / "trace.vcd"
+    bmc_script = read + "\n" + prep + "\n" + _sat_line(harness, prop, actual_depth, False, dump_vcd=bmc_vcd) + "\n"
     bmc_script_path = build / "bmc.ys"
     bmc_log_path = logs / f"{file_san}.bmc.log"
     if not quiet:
         eprint(f"[{pid}] BMC depth={actual_depth} timeout={actual_timeout}s")
     bmc = _run_yosys(bmc_script, bmc_script_path, bmc_log_path, root, actual_timeout)
     bmc_parsed = parse_sat(bmc.get("output") or "")
+    bmc_trace_row = f"trace_vcd: {rel_to(root, bmc_vcd)}" if bmc_vcd.is_file() and bmc_vcd.stat().st_size else ""
     result: dict[str, Any] = {
         "id": pid,
         "kind": prop.get("kind"),
@@ -336,6 +329,8 @@ def run_property(harness: dict[str, Any], prop: dict[str, Any],
         result["status"] = "TIMEOUT"
         result["error"] = f"BMC timed out after {actual_timeout}s"
         result["counterexample"] = parse_counterexample(bmc.get("output") or "")
+        if bmc_trace_row:
+            result["counterexample"].insert(0, bmc_trace_row)
         return result
     if bmc_parsed["result"] == "error":
         result["status"] = "ERROR"
@@ -350,6 +345,8 @@ def run_property(harness: dict[str, Any], prop: dict[str, Any],
     if prop.get("mode") in ("cover", "assume"):
         reachable = bmc_parsed["result"] == "fail"
         result["counterexample"] = parse_counterexample(bmc.get("output") or "")
+        if bmc_trace_row and reachable:
+            result["counterexample"].insert(0, bmc_trace_row)
         if prop.get("mode") == "cover":
             result["status"] = "COVERED" if reachable else COVER_NOT_REACHED
         else:
@@ -365,6 +362,8 @@ def run_property(harness: dict[str, Any], prop: dict[str, Any],
     if bmc_parsed["result"] == "fail":
         result["status"] = "FAIL"
         result["counterexample"] = parse_counterexample(bmc.get("output") or "")
+        if bmc_trace_row:
+            result["counterexample"].insert(0, bmc_trace_row)
         result["error"] = bmc_parsed.get("line") or "BMC found a counterexample"
         if not quiet:
             eprint(f"[{pid}] FAIL ({result['elapsed_s']}s)")
@@ -387,9 +386,10 @@ def run_property(harness: dict[str, Any], prop: dict[str, Any],
             eprint(f"[{pid}] BMC_PASS (induction skipped) ({result['elapsed_s']}s)")
         return result
 
+    induct_vcd = build / "induct_trace.vcd"
     induct_script = (
         read + "\n" + prep + "\n"
-        + _sat_line(harness, prop, actual_depth, True) + "\n"
+        + _sat_line(harness, prop, actual_depth, True, dump_vcd=induct_vcd) + "\n"
     )
     induct_script_path = build / "induct.ys"
     induct_log_path = logs / f"{file_san}.induct.log"
@@ -398,6 +398,7 @@ def run_property(harness: dict[str, Any], prop: dict[str, Any],
     induct = _run_yosys(induct_script, induct_script_path, induct_log_path, root, actual_timeout)
     induct_parsed = parse_sat(induct.get("output") or "")
     result["elapsed_s"] = round(float(result["elapsed_s"]) + float(induct.get("elapsed_s") or 0), 3)
+    induct_trace_row = f"trace_vcd: {rel_to(root, induct_vcd)}" if induct_vcd.is_file() and induct_vcd.stat().st_size else ""
     result["induction"] = {
         "result": induct_parsed["result"],
         "line": induct_parsed.get("line", ""),
@@ -408,6 +409,8 @@ def run_property(harness: dict[str, Any], prop: dict[str, Any],
         "script": rel_to(root, Path(induct["script"])),
         "log": rel_to(root, Path(induct["log"])),
     }
+    if induct_trace_row and induct_parsed["result"] in ("fail", "induction_fail"):
+        result["counterexample"].insert(0, induct_trace_row)
     if induct.get("timed_out"):
         result["status"] = "BMC_PASS"
         result["induction"]["reason"] = f"induction timed out after {actual_timeout}s"

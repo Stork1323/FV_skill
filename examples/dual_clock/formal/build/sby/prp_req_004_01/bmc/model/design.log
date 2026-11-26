@@ -1,0 +1,315 @@
+
+ /----------------------------------------------------------------------------\
+ |  yosys -- Yosys Open SYnthesis Suite                                       |
+ |  Copyright (C) 2012 - 2026  Claire Xenia Wolf <claire@yosyshq.com>         |
+ |  Distributed under an ISC-like license, type "license" to see terms        |
+ \----------------------------------------------------------------------------/
+ Yosys 0.71+post (git sha1 5628c13240f670b97aaaca3d47940c4afb8ff572, Release, AppleClang clang++ 21.0.0.21000401)
+
+-- Executing script file `../model/design.ys' --
+
+1. Executing Verilog-2005 frontend: /private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/src/rtl/dual_clock.sv
+Parsing formal SystemVerilog input from `/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/src/rtl/dual_clock.sv' to AST representation.
+Generating RTLIL representation for module `\dual_clock'.
+Successfully finished Verilog frontend.
+
+2. Executing Verilog-2005 frontend: /private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/src/generated/fv_prp_req_004_01_monitor.sv
+Parsing formal SystemVerilog input from `/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/src/generated/fv_prp_req_004_01_monitor.sv' to AST representation.
+Generating RTLIL representation for module `\fv_mon_prp_req_004_01'.
+Successfully finished Verilog frontend.
+
+3. Executing Verilog-2005 frontend: /private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/src/generated/fv_prp_req_004_01_top.sv
+Parsing formal SystemVerilog input from `/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/src/generated/fv_prp_req_004_01_top.sv' to AST representation.
+Generating RTLIL representation for module `\fv_top_prp_req_004_01'.
+Successfully finished Verilog frontend.
+
+4. Executing Verilog-2005 frontend: /private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_004_01/bmc_top.sv
+Parsing formal SystemVerilog input from `/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_004_01/bmc_top.sv' to AST representation.
+Generating RTLIL representation for module `\fv_top_prp_req_004_01_bmc'.
+Successfully finished Verilog frontend.
+
+5. Executing PREP pass.
+
+5.1. Executing HIERARCHY pass (managing design hierarchy).
+
+5.1.1. Analyzing design hierarchy..
+Top module:  \fv_top_prp_req_004_01_bmc
+Used module:     \fv_mon_prp_req_004_01
+Used module:     \dual_clock
+
+5.1.2. Analyzing design hierarchy..
+Top module:  \fv_top_prp_req_004_01_bmc
+Used module:     \fv_mon_prp_req_004_01
+Used module:     \dual_clock
+Removing unused module `\fv_top_prp_req_004_01'.
+Removed 1 unused modules.
+Module fv_top_prp_req_004_01_bmc directly or indirectly contains formal properties -> setting "keep" attribute.
+Module fv_mon_prp_req_004_01 directly or indirectly contains formal properties -> setting "keep" attribute.
+
+5.2. Executing PROC pass (convert processes to netlists).
+
+5.2.1. Executing PROC_CLEAN pass (remove empty switches from decision trees).
+Cleaned up 0 empty switches.
+
+5.2.2. Executing PROC_RMDEAD pass (remove dead branches from decision trees).
+Marked 1 switch rules as full_case in process $/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/src/rtl/dual_clock.sv:24$proc$3 in module dual_clock.
+Marked 1 switch rules as full_case in process $/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/src/rtl/dual_clock.sv:18$proc$1 in module dual_clock.
+Removed a total of 0 dead cases.
+
+5.2.3. Executing PROC_PRUNE pass (remove redundant assignments in processes).
+Removed 2 redundant assignments.
+Promoted 3 assignments to connections.
+
+5.2.4. Executing PROC_INIT pass (extract init attributes).
+Found init rule in `\fv_top_prp_req_004_01_bmc.$/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_004_01/bmc_top.sv:12$proc$25'.
+  Set init value: \fv_cycle = 16'0000000000000000
+Found init rule in `\fv_mon_prp_req_004_01.$/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/src/generated/fv_prp_req_004_01_monitor.sv:17$proc$18'.
+  Set init value: \fv_trig_d1 = 1'0
+
+5.2.5. Executing PROC_ARST pass (detect async resets in processes).
+Found async reset \rst_b_n in `\dual_clock.$/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/src/rtl/dual_clock.sv:24$proc$3'.
+Found async reset \rst_a_n in `\dual_clock.$/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/src/rtl/dual_clock.sv:18$proc$1'.
+
+5.2.6. Executing PROC_ROM pass (convert switches to ROMs).
+Converted 0 switches.
+<suppressed ~4 debug messages>
+
+5.2.7. Executing PROC_MUX pass (convert decision trees to multiplexers).
+Creating decoders for process `\fv_top_prp_req_004_01_bmc.$/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_004_01/bmc_top.sv:12$proc$25'.
+Creating decoders for process `\fv_top_prp_req_004_01_bmc.$/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_004_01/bmc_top.sv:13$proc$19'.
+     1/1: $0\fv_cycle[15:0]
+Creating decoders for process `\fv_mon_prp_req_004_01.$/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/src/generated/fv_prp_req_004_01_monitor.sv:17$proc$18'.
+Creating decoders for process `\fv_mon_prp_req_004_01.$/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/src/generated/fv_prp_req_004_01_monitor.sv:21$proc$14'.
+     1/1: $/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/src/generated/fv_prp_req_004_01_monitor.sv:22$assert$16_EN
+Creating decoders for process `\fv_mon_prp_req_004_01.$/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/src/generated/fv_prp_req_004_01_monitor.sv:18$proc$10'.
+Creating decoders for process `\dual_clock.$/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/src/rtl/dual_clock.sv:24$proc$3'.
+     1/3: $0\req_b_sync[0:0]
+     2/3: $0\req_b_meta[0:0]
+     3/3: $0\ack_b[0:0]
+Creating decoders for process `\dual_clock.$/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/src/rtl/dual_clock.sv:18$proc$1'.
+     1/1: $0\req_a[0:0]
+
+5.2.8. Executing PROC_DLATCH pass (convert process syncs to latches).
+
+5.2.9. Executing PROC_DFF pass (convert process syncs to FFs).
+Creating register for signal `\fv_top_prp_req_004_01_bmc.\fv_cycle' using process `\fv_top_prp_req_004_01_bmc.$/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_004_01/bmc_top.sv:13$proc$19'.
+  created $dff cell `$procdff$34' with positive edge clock.
+Creating register for signal `\fv_mon_prp_req_004_01.\fv_trig_d1' using process `\fv_mon_prp_req_004_01.$/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/src/generated/fv_prp_req_004_01_monitor.sv:18$proc$10'.
+  created $dff cell `$procdff$35' with positive edge clock.
+Creating register for signal `\dual_clock.\req_b_meta' using process `\dual_clock.$/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/src/rtl/dual_clock.sv:24$proc$3'.
+  created $adff cell `$procdff$40' with positive edge clock and positive level reset.
+Creating register for signal `\dual_clock.\req_b_sync' using process `\dual_clock.$/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/src/rtl/dual_clock.sv:24$proc$3'.
+  created $adff cell `$procdff$45' with positive edge clock and positive level reset.
+Creating register for signal `\dual_clock.\ack_b' using process `\dual_clock.$/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/src/rtl/dual_clock.sv:24$proc$3'.
+  created $adff cell `$procdff$50' with positive edge clock and positive level reset.
+Creating register for signal `\dual_clock.\req_a' using process `\dual_clock.$/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/src/rtl/dual_clock.sv:18$proc$1'.
+  created $adff cell `$procdff$55' with positive edge clock and positive level reset.
+
+5.2.10. Executing PROC_MEMWR pass (convert process memory writes to cells).
+
+5.2.11. Executing PROC_CLEAN pass (remove empty switches from decision trees).
+Removing empty process `fv_top_prp_req_004_01_bmc.$/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_004_01/bmc_top.sv:12$proc$25'.
+Found and cleaned up 1 empty switch in `\fv_top_prp_req_004_01_bmc.$/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_004_01/bmc_top.sv:13$proc$19'.
+Removing empty process `fv_top_prp_req_004_01_bmc.$/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_004_01/bmc_top.sv:13$proc$19'.
+Removing empty process `fv_mon_prp_req_004_01.$/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/src/generated/fv_prp_req_004_01_monitor.sv:17$proc$18'.
+Found and cleaned up 1 empty switch in `\fv_mon_prp_req_004_01.$/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/src/generated/fv_prp_req_004_01_monitor.sv:21$proc$14'.
+Removing empty process `fv_mon_prp_req_004_01.$/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/src/generated/fv_prp_req_004_01_monitor.sv:21$proc$14'.
+Removing empty process `fv_mon_prp_req_004_01.$/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/src/generated/fv_prp_req_004_01_monitor.sv:18$proc$10'.
+Found and cleaned up 1 empty switch in `\dual_clock.$/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/src/rtl/dual_clock.sv:24$proc$3'.
+Removing empty process `dual_clock.$/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/src/rtl/dual_clock.sv:24$proc$3'.
+Found and cleaned up 1 empty switch in `\dual_clock.$/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/src/rtl/dual_clock.sv:18$proc$1'.
+Removing empty process `dual_clock.$/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/src/rtl/dual_clock.sv:18$proc$1'.
+Cleaned up 4 empty switches.
+
+5.2.12. Executing OPT_EXPR pass (perform const folding).
+Optimizing module fv_top_prp_req_004_01_bmc.
+<suppressed ~1 debug messages>
+Optimizing module fv_mon_prp_req_004_01.
+<suppressed ~2 debug messages>
+Optimizing module dual_clock.
+<suppressed ~8 debug messages>
+
+5.3. Executing CHECK pass (checking for obvious problems).
+Checking module fv_top_prp_req_004_01_bmc...
+Checking module fv_mon_prp_req_004_01...
+Checking module dual_clock...
+Found and reported 0 problems.
+
+5.4. Executing FLATTEN pass (flatten design).
+Deleting now unused module fv_mon_prp_req_004_01.
+Deleting now unused module dual_clock.
+<suppressed ~2 debug messages>
+
+5.5. Executing FUTURE pass.
+
+5.6. Executing OPT_EXPR pass (perform const folding).
+Optimizing module fv_top_prp_req_004_01_bmc.
+<suppressed ~9 debug messages>
+
+5.7. Executing CHECK pass (checking for obvious problems).
+Checking module fv_top_prp_req_004_01_bmc...
+Found and reported 0 problems.
+
+5.8. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \fv_top_prp_req_004_01_bmc..
+Removed 3 unused cells and 32 unused wires.
+<suppressed ~5 debug messages>
+
+5.9. Executing OPT pass (performing simple optimizations).
+
+5.9.1. Executing OPT_EXPR pass (perform const folding).
+Optimizing module fv_top_prp_req_004_01_bmc.
+
+5.9.2. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\fv_top_prp_req_004_01_bmc'.
+Computing hashes of 23 cells of `\fv_top_prp_req_004_01_bmc'.
+Finding duplicate cells in `\fv_top_prp_req_004_01_bmc'.
+Removed a total of 0 cells.
+
+5.9.3. Executing OPT_MUXTREE pass (detect dead branches in mux trees).
+Running muxtree optimizer on module \fv_top_prp_req_004_01_bmc..
+  Creating internal representation of mux trees.
+  Evaluating internal representation of mux trees.
+  Analyzing evaluation results.
+Removed 0 multiplexer ports.
+<suppressed ~10 debug messages>
+
+5.9.4. Executing OPT_REDUCE pass (consolidate $*mux and $reduce_* inputs).
+  Optimizing cells in module \fv_top_prp_req_004_01_bmc.
+Performed a total of 0 changes.
+
+5.9.5. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\fv_top_prp_req_004_01_bmc'.
+Computing hashes of 23 cells of `\fv_top_prp_req_004_01_bmc'.
+Finding duplicate cells in `\fv_top_prp_req_004_01_bmc'.
+Removed a total of 0 cells.
+
+5.9.6. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \fv_top_prp_req_004_01_bmc..
+
+5.9.7. Executing OPT_EXPR pass (perform const folding).
+Optimizing module fv_top_prp_req_004_01_bmc.
+
+5.9.8. Finished fast OPT passes. (There is nothing left to do.)
+
+5.10. Executing WREDUCE pass (reducing word size of cells).
+Removed top 15 bits (of 16) from port B of cell fv_top_prp_req_004_01_bmc.$/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_004_01/bmc_top.sv:14$add$21 ($add).
+Removed top 14 bits (of 16) from port B of cell fv_top_prp_req_004_01_bmc.$/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_004_01/bmc_top.sv:16$lt$22 ($lt).
+
+5.11. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \fv_top_prp_req_004_01_bmc..
+
+5.12. Executing MEMORY_COLLECT pass (generating $mem cells).
+
+5.13. Executing OPT pass (performing simple optimizations).
+
+5.13.1. Executing OPT_EXPR pass (perform const folding).
+Optimizing module fv_top_prp_req_004_01_bmc.
+
+5.13.2. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\fv_top_prp_req_004_01_bmc'.
+Computing hashes of 23 cells of `\fv_top_prp_req_004_01_bmc'.
+Finding duplicate cells in `\fv_top_prp_req_004_01_bmc'.
+Removed a total of 0 cells.
+
+5.13.3. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \fv_top_prp_req_004_01_bmc..
+
+5.13.4. Finished fast OPT passes.
+
+5.14. Executing SORT pass.
+
+5.15. Printing statistics.
+
+=== fv_top_prp_req_004_01_bmc ===
+
+        +----------Local Count, excluding submodules.
+        | 
+       44 wires
+       89 wire bits
+       33 public wires
+       48 public wire bits
+        7 ports
+        7 port bits
+       23 cells
+        1   $add
+        4   $adff
+        1   $check
+        2   $dff
+        4   $logic_and
+        1   $logic_not
+        1   $lt
+        5   $mux
+        1   $ne
+        1   $reduce_bool
+        2   $scopeinfo
+
+5.16. Executing CHECK pass (checking for obvious problems).
+Checking module fv_top_prp_req_004_01_bmc...
+Found and reported 0 problems.
+
+6. Executing ASYNC2SYNC pass.
+Replacing fv_top_prp_req_004_01_bmc.$flatten\u_dut.$procdff$40 ($adff): ARST=$/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_004_01/bmc_top.sv:16$lt$22_Y, D=\u_dut.req_a, Q=\u_dut.req_b_meta
+Replacing fv_top_prp_req_004_01_bmc.$flatten\u_dut.$procdff$45 ($adff): ARST=$/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_004_01/bmc_top.sv:16$lt$22_Y, D=\u_dut.req_b_meta, Q=\u_dut.req_b_sync
+Replacing fv_top_prp_req_004_01_bmc.$flatten\u_dut.$procdff$50 ($adff): ARST=$/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_004_01/bmc_top.sv:16$lt$22_Y, D=$flatten\u_dut.$0\ack_b[0:0], Q=\u_dut.ack_b
+Replacing fv_top_prp_req_004_01_bmc.$flatten\u_dut.$procdff$55 ($adff): ARST=\rst_a_n, D=$flatten\u_dut.$0\req_a[0:0], Q=\u_dut.req_a
+
+7. Executing MEMORY_MAP pass (converting memories to logic and flip-flops).
+
+8. Executing OPT pass (performing simple optimizations).
+
+8.1. Executing OPT_EXPR pass (perform const folding).
+Optimizing module fv_top_prp_req_004_01_bmc.
+
+8.2. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\fv_top_prp_req_004_01_bmc'.
+Computing hashes of 29 cells of `\fv_top_prp_req_004_01_bmc'.
+Finding duplicate cells in `\fv_top_prp_req_004_01_bmc'.
+Removed a total of 0 cells.
+
+8.3. Executing OPT_DFF pass (perform DFF optimizations).
+Adding EN signal on $procdff$34 ($dff) from module fv_top_prp_req_004_01_bmc (D = $/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_004_01/bmc_top.sv:14$add$21_Y, Q = \fv_cycle).
+Adding SRST signal on $flatten\u_dut.$procdff$45 ($sdff) from module fv_top_prp_req_004_01_bmc (D = $auto$async2sync.cc:253:execute$58, Q = $auto$async2sync.cc:253:execute$60, rval = 1'0).
+
+8.4. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \fv_top_prp_req_004_01_bmc..
+Removed 4 unused cells and 4 unused wires.
+<suppressed ~6 debug messages>
+
+8.5. Rerunning OPT passes. (Removed registers in this run.)
+
+8.6. Executing OPT_EXPR pass (perform const folding).
+Optimizing module fv_top_prp_req_004_01_bmc.
+
+8.7. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\fv_top_prp_req_004_01_bmc'.
+Computing hashes of 25 cells of `\fv_top_prp_req_004_01_bmc'.
+Finding duplicate cells in `\fv_top_prp_req_004_01_bmc'.
+Removed a total of 0 cells.
+
+8.8. Executing OPT_DFF pass (perform DFF optimizations).
+
+8.9. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \fv_top_prp_req_004_01_bmc..
+
+8.10. Finished fast OPT passes.
+
+9. Executing HIERARCHY pass (managing design hierarchy).
+Attribute `top' found on module `fv_top_prp_req_004_01_bmc'. Setting top module to fv_top_prp_req_004_01_bmc.
+
+9.1. Analyzing design hierarchy..
+Top module:  \fv_top_prp_req_004_01_bmc
+
+9.2. Analyzing design hierarchy..
+Top module:  \fv_top_prp_req_004_01_bmc
+Removed 0 unused modules.
+Module fv_top_prp_req_004_01_bmc directly or indirectly contains formal properties -> setting "keep" attribute.
+
+10. Executing jny backend.
+
+11. Executing RTLIL backend.
+Output filename: ../model/design.il
+
+End of script. Logfile hash: 7dc0ffe6ba, time: 0.00s, user: 0.01s, system: 0.00s, MEM: 15.91 MB peak
+Yosys 0.71+post (git sha1 5628c13240f670b97aaaca3d47940c4afb8ff572, Release, AppleClang clang++ 21.0.0.21000401)
+Time spent: 23% 5x read_verilog (0 sec), 13% 5x opt_merge (0 sec), ...

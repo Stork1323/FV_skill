@@ -1,0 +1,61 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-11-26T01:58:51+00:00",
+  "design": {
+    "name": "dual_clock",
+    "top": "dual_clock",
+    "clock": {
+      "signal": "clk_a",
+      "edge": "posedge"
+    },
+    "reset": {
+      "signal": "rst_a_n",
+      "active": "low",
+      "kind": "async",
+      "cycles": 2
+    },
+    "parameters": {}
+  },
+  "overall": "WARN",
+  "summary": {
+    "findings": 2,
+    "errors": 0,
+    "warnings": 2,
+    "info": 0,
+    "categories": {
+      "coverage": 2
+    }
+  },
+  "findings": [
+    {
+      "id": "REV-001",
+      "code": "TRIGGER_UNCOVERED",
+      "severity": "warning",
+      "category": "coverage",
+      "property": "PRP-REQ-002-01",
+      "requirement": "REQ-002",
+      "owner": "verification_engineer",
+      "message": "PRP-REQ-002-01 asserts a trigger but no cover reaches that trigger.",
+      "recommendation": "Add a cover property with the same trigger; otherwise a bounded pass may be vacuous."
+    },
+    {
+      "id": "REV-002",
+      "code": "TRIGGER_UNCOVERED",
+      "severity": "warning",
+      "category": "coverage",
+      "property": "PRP-REQ-004-01",
+      "requirement": "REQ-004",
+      "owner": "verification_engineer",
+      "message": "PRP-REQ-004-01 asserts a trigger but no cover reaches that trigger.",
+      "recommendation": "Add a cover property with the same trigger; otherwise a bounded pass may be vacuous."
+    }
+  ],
+  "inputs": {
+    "contract": "formal/schemas/formal_contract.json",
+    "contract_sha256": "25f47a3889d5272534d156ee590ff169491c49647e4a6d408dd2bb0e7cf2ba50"
+  },
+  "artifacts": {
+    "review_json": "formal/reports/sva_review.json",
+    "review_md": "formal/reports/sva_review.md"
+  }
+}

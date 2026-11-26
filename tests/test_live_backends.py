@@ -115,3 +115,46 @@ class LiveSBYQualification(unittest.TestCase):
             res = _load(proj / "formal" / "results" / "formal_results.json")
             asm = next(p for p in res["properties"] if p["id"] == "ASM-VAC-01")
             self.assertIn(asm["status"], ("VACUOUS", "ASSUMED_UNCHECKED"))
+
+
+DUAL_CLOCK = SKILL / "examples" / "dual_clock"
+
+
+@unittest.skipUnless(_has("yosys"), "yosys required")
+class LiveDualClockQualification(unittest.TestCase):
+    def _copy(self, dst: Path) -> Path:
+        shutil.copytree(DUAL_CLOCK, dst / "dual_clock")
+        return dst / "dual_clock"
+
+    def test_yosys_multiclock_domains_and_waveforms(self):
+        with tempfile.TemporaryDirectory() as td:
+            proj = self._copy(Path(td))
+            design = proj / "formal" / "design.json"
+            r = _run("run", "--design", str(design), "--backend", "yosys", "--jobs", "1")
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+            res = _load(proj / "formal" / "results" / "formal_results.json")
+            by = {p["id"]: p for p in res["properties"]}
+            self.assertEqual(by["PRP-REQ-001-01"]["status"], "BMC_PASS")
+            self.assertIn(by["PRP-REQ-002-01"]["status"], ("PROVEN", "BMC_PASS"))
+            self.assertEqual(by["PRP-REQ-003-01"]["status"], "BMC_PASS")
+            self.assertIn(by["PRP-REQ-004-01"]["status"], ("PROVEN", "BMC_PASS"))
+            self.assertEqual(by["COV-REQ-005-01"]["status"], "COVERED")
+            self.assertEqual((by["PRP-REQ-003-01"].get("config") or {}).get("reset_cycles"), 3)
+            self.assertEqual((by["PRP-REQ-003-01"].get("config") or {}).get("clock"), "clk_b")
+            r = _run("waveforms", "--design", str(design))
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+            for pid in by:
+                self.assertTrue((proj / "formal" / "reports" / "waveforms" / f"{pid}.vcd").is_file(), pid)
+                self.assertTrue((proj / "formal" / "reports" / "waveforms" / f"{pid}.svg").is_file(), pid)
+
+    @unittest.skipUnless(_has("sby"), "sby required")
+    def test_sby_multiclock_domains(self):
+        with tempfile.TemporaryDirectory() as td:
+            proj = self._copy(Path(td))
+            design = proj / "formal" / "design.json"
+            r = _run("run", "--design", str(design), "--backend", "symbiyosys", "--jobs", "1")
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+            res = _load(proj / "formal" / "results" / "formal_results.json")
+            statuses = {p["id"]: p["status"] for p in res["properties"]}
+            self.assertEqual(statuses["COV-REQ-005-01"], "COVERED")
+            self.assertIn(statuses["PRP-REQ-004-01"], ("PROVEN", "BMC_PASS"))

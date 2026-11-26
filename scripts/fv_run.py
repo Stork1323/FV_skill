@@ -625,17 +625,22 @@ def _markdown(results: dict[str, Any]) -> str:
         for r in partials:
             lines.append(f"- `{r['id']}`: {_md_escape(r.get('limitations') or '')}")
         lines.append("")
+    cat = (results.get("artifacts") or {}).get("catalog_md")
+    if cat:
+        lines.append(f"- **SVA catalog:** `{cat}`")
+        lines.append("")
     lines.append("## Property results")
     lines.append("")
-    lines.append("| Property | Req | Kind | Role | Depth | BMC | Induction | Status | Why | Time (s) |")
-    lines.append("|---|---|---|---|---:|---|---|---|---|---:|")
+    lines.append("| Property | Req | Title | Kind | Role | Depth | BMC | Induction | Status | Waveform |")
+    lines.append("|---|---|---|---|---|---:|---|---|---|---|")
     for p in results.get("properties") or []:
         bmc = _phase_display(p, "bmc")
         ind = _phase_display(p, "induction")
-        reason = _md_escape(p.get("status_reason") or STATUS_REASONS.get(str(p.get("status")), ""))
-        lines.append(f"| `{p['id']}` | `{p.get('req')}` | {p.get('kind')} | {p.get('role')} | "
-                     f"{p.get('depth')} | {bmc} | {ind} | **{p.get('status')}** | {reason} | "
-                     f"{p.get('elapsed_s', '')} |")
+        title = _md_escape(p.get("title") or "")
+        wav = p.get("waveform_vcd") or p.get("waveform_svg") or ""
+        wav_cell = f"`{_md_escape(wav)}`" if wav else ""
+        lines.append(f"| `{p['id']}` | `{p.get('req')}` | {title} | {p.get('kind')} | {p.get('role')} | "
+                     f"{p.get('depth')} | {bmc} | {ind} | **{p.get('status')}** | {wav_cell} |")
     lines.append("")
     problems = [p for p in results.get("properties") or []
                 if p.get("status") in BAD_ERROR
@@ -647,9 +652,34 @@ def _markdown(results: dict[str, Any]) -> str:
             lines.append(f"### `{p['id']}` -- {p.get('status')}")
             lines.append("")
             lines.append(f"- **Requirement:** `{p.get('req')}` -- {_md_escape(p.get('title'))}")
+            lines.append(f"- **Kind/Role:** `{p.get('kind')}` / `{p.get('role')}`")
+            check = p.get('expr') or p.get('trigger') or p.get('signal') or ''
+            if check:
+                lines.append(f"- **Check:** `{_md_escape(str(check))}`")
+            if p.get('trigger') and p.get('expr') and p.get('kind') in ('next','response','stability'):
+                lines.append(f"- **Trigger:** `{_md_escape(str(p.get('trigger')))}")
+            if p.get('response'):
+                lines.append(f"- **Response:** `{_md_escape(str(p.get('response')))}")
             lines.append(f"- **Triage:** {triage(p)}")
             if p.get("error"):
                 lines.append(f"- **Error:** {_md_escape(p['error'])}")
+            for k, label in (("trace_vcd","Trace VCD"), ("waveform_vcd","Waveform VCD"), ("waveform_gtkw","GTKWave save"), ("waveform_svg","Waveform SVG")):
+                if p.get(k):
+                    lines.append(f"- **{label}:** `{p[k]}`")
+            if p.get("signals_of_interest"):
+                sigs = ", ".join(f"`{s}`" for s in p.get("signals_of_interest")[:20])
+                lines.append(f"- **Signals of interest:** {sigs}")
+            ces = p.get("counterexample_summary") or {}
+            if ces.get("rows") and ces.get("times"):
+                lines.append("")
+                lines.append("Counterexample signal summary (last steps):")
+                lines.append("")
+                hdr = ["Signal"] + [str(t) for t in ces["times"]]
+                lines.append("| " + " | ".join(hdr) + " |")
+                lines.append("|" + "|".join(["---"] * len(hdr)) + "|")
+                for row in ces["rows"][:12]:
+                    vals = [str(v) for v in row.get("values") or []]
+                    lines.append("| `" + str(row.get("signal","")) + "` | " + " | ".join(vals) + " |")
             for item in ("bmc", "induction"):
                 sub = p.get(item) or {}
                 if sub.get("log"):
@@ -657,15 +687,22 @@ def _markdown(results: dict[str, Any]) -> str:
                     if sub.get("line"):
                         lines.append(f"- **{item.upper()} result:** `{_md_escape(sub['line'])}`")
             cx = p.get("counterexample") or []
-            if cx:
+            trace_rows = [r for r in cx if str(r).startswith(('trace_vcd:','trace_tb:','trace_yw:','trace_fst:'))]
+            detail_rows = [r for r in cx if r not in trace_rows]
+            if trace_rows:
+                lines.append("- **Trace files:**")
+                for r in trace_rows[:6]:
+                    lines.append(f"  - `{_md_escape(str(r))}`")
+            if detail_rows:
                 lines.append("")
-                lines.append("Counterexample (Yosys model rows):")
+                lines.append("<details><summary>Counterexample details</summary>")
                 lines.append("")
                 lines.append("```")
-                lines.extend(cx[:40])
-                if len(cx) > 40:
-                    lines.append(f"... {len(cx) - 40} more rows in the results JSON")
+                lines.extend(detail_rows[:40])
+                if len(detail_rows) > 40:
+                    lines.append(f"... {len(detail_rows) - 40} more rows in the results JSON")
                 lines.append("```")
+                lines.append("</details>")
             lines.append("")
     if results.get("assumptions"):
         lines.append("## Assumptions")
@@ -864,7 +901,8 @@ def run_all(manifest: dict[str, Any], contract_path: Path | None = None,
                 "trigger", "response", "min_delay", "max_delay", "signal", "cycles",
                 "disable_reset", "depth", "severity", "tags", "evidence",
                 "obligation", "owner", "intent", "proof", "configurations",
-                "delay_source", "induction_helpers", "limitations",
+                "delay_source", "induction_helpers", "limitations", "spec_sva_id",
+                "clock", "reset", "domain",
             ) if cprop.get(k) is not None
         }
         semantic_sha = hashlib.sha256(
@@ -893,6 +931,9 @@ def run_all(manifest: dict[str, Any], contract_path: Path | None = None,
             "signal": cprop.get("signal"),
             "cycles": cprop.get("cycles"),
             "disable_reset": cprop.get("disable_reset"),
+            "clock": prop.get("clock") or cprop.get("clock"),
+            "reset": prop.get("reset") or cprop.get("reset"),
+            "domain": prop.get("domain") or cprop.get("domain"),
             "run_id": run_fingerprint,
             "config": {
                 "design": (contract.get("design") or {}).get("name"),
@@ -902,6 +943,9 @@ def run_all(manifest: dict[str, Any], contract_path: Path | None = None,
                 "backend_kind": backend_info.get("kind"),
                 "depth": run.get("depth"),
                 "reset_cycles": prop.get("reset_cycles"),
+                "clock": (prop.get("clock") or {}).get("signal") if isinstance(prop.get("clock"), dict) else prop.get("clock"),
+                "reset": (prop.get("reset") or {}).get("signal") if isinstance(prop.get("reset"), dict) else prop.get("reset"),
+                "domain": prop.get("domain") or cprop.get("domain"),
             },
             "semantic": semantic,
             "semantic_sha256": semantic_sha,
@@ -1102,10 +1146,50 @@ def check_results_binding(results: dict[str, Any], manifest: dict[str, Any] | No
     return errors
 
 
-def write_artifacts(manifest: dict[str, Any], results: dict[str, Any]) -> None:
-    """Write results.json, report.md, report.json and junit.xml deterministically."""
+def _merge_waveform_artifacts(manifest: dict[str, Any], results: dict[str, Any], wave_index: dict[str, Any], root: Path) -> None:
+    by_id = {str(a.get("property")): a for a in (wave_index.get("artifacts") or [])}
+    for p in results.get("properties") or []:
+        a = by_id.get(str(p.get("id")))
+        if not a:
+            continue
+        for k in ("vcd", "svg", "gtkw", "signals_json", "vcd_kind", "signals_of_interest", "counterexample_summary"):
+            if a.get(k):
+                target = k
+                if k in ("vcd", "svg", "gtkw"):
+                    target = "waveform_" + k
+                p[target] = a[k]
+        if a.get("vcd_source"):
+            p["trace_vcd"] = a["vcd_source"]
+        if not p.get("trace_vcd"):
+            for row in p.get("counterexample") or []:
+                m = re.search(r"trace_vcd:\s*(.+)$", str(row).strip())
+                if m:
+                    p["trace_vcd"] = m.group(1).strip()
+                    break
+    arts = results.setdefault("artifacts", {})
+    arts["waveforms_dir"] = rel_to(root, Path(manifest["_paths"]["reports"]) / "waveforms")
+    arts["waveforms_index"] = rel_to(root, Path(manifest["_paths"]["reports"]) / "waveforms" / "index.json")
+
+
+def write_artifacts(manifest: dict[str, Any], results: dict[str, Any],
+                    allow_review_errors: bool = False) -> None:
+    """Write results.json, report.md, report.json, junit.xml, catalog, and waveforms."""
+    root = project_root(manifest)
     results_path = Path(manifest["_paths"]["results"])
     reports = Path(manifest["_paths"]["reports"])
+    reports.mkdir(parents=True, exist_ok=True)
+    try:
+        from fv_waveform import generate_for_results
+        wave_index = generate_for_results(manifest, results)
+        _merge_waveform_artifacts(manifest, results, wave_index, root)
+    except Exception as exc:
+        results.setdefault("warnings", []).append(f"waveform generation failed: {exc}")
+    try:
+        from fv_catalog import write_catalog
+        results.setdefault("artifacts", {}).update(write_catalog(manifest, results))
+    except Exception as exc:
+        results.setdefault("warnings", []).append(f"catalog generation failed: {exc}")
+    results["signoff"] = compute_signoff(results, manifest, allow_review_errors=allow_review_errors)
     write_json(results_path, results)
     write_text(reports / "report.md", _markdown(results))
     write_json(reports / "report.json", results)

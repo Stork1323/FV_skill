@@ -1,0 +1,61 @@
+{
+  "schema_version": "1.0",
+  "generated": 5,
+  "artifacts": [
+    {
+      "property": "PRP-REQ-001-01",
+      "status": "BMC_PASS",
+      "kind": "reset_value",
+      "role": "assert",
+      "vcd_kind": "synthetic_no_trace",
+      "note": "No backend trace VCD found; generated synthetic sanity VCD so evidence always includes both VCD and snapshot.",
+      "vcd": "formal/reports/waveforms/PRP-REQ-001-01.vcd",
+      "svg": "formal/reports/waveforms/PRP-REQ-001-01.svg",
+      "evidence": "waveform+vcd"
+    },
+    {
+      "property": "PRP-REQ-002-01",
+      "status": "PROVEN",
+      "kind": "next",
+      "role": "assert",
+      "vcd_kind": "synthetic_no_trace",
+      "note": "No backend trace VCD found; generated synthetic sanity VCD so evidence always includes both VCD and snapshot.",
+      "vcd": "formal/reports/waveforms/PRP-REQ-002-01.vcd",
+      "svg": "formal/reports/waveforms/PRP-REQ-002-01.svg",
+      "evidence": "waveform+vcd"
+    },
+    {
+      "property": "PRP-REQ-003-01",
+      "status": "BMC_PASS",
+      "kind": "reset_value",
+      "role": "assert",
+      "vcd_kind": "synthetic_no_trace",
+      "note": "No backend trace VCD found; generated synthetic sanity VCD so evidence always includes both VCD and snapshot.",
+      "vcd": "formal/reports/waveforms/PRP-REQ-003-01.vcd",
+      "svg": "formal/reports/waveforms/PRP-REQ-003-01.svg",
+      "evidence": "waveform+vcd"
+    },
+    {
+      "property": "PRP-REQ-004-01",
+      "status": "PROVEN",
+      "kind": "next",
+      "role": "assert",
+      "vcd_kind": "synthetic_no_trace",
+      "note": "No backend trace VCD found; generated synthetic sanity VCD so evidence always includes both VCD and snapshot.",
+      "vcd": "formal/reports/waveforms/PRP-REQ-004-01.vcd",
+      "svg": "formal/reports/waveforms/PRP-REQ-004-01.svg",
+      "evidence": "waveform+vcd"
+    },
+    {
+      "property": "COV-REQ-005-01",
+      "status": "COVERED",
+      "kind": "cover",
+      "role": "cover",
+      "vcd_source": "formal/build/sby/cov_req_005_01/bmc/engine_0/trace0.vcd",
+      "vcd_kind": "trace",
+      "vcd": "formal/reports/waveforms/COV-REQ-005-01.vcd",
+      "svg": "formal/reports/waveforms/COV-REQ-005-01.svg",
+      "evidence": "waveform+vcd"
+    }
+  ]
+}

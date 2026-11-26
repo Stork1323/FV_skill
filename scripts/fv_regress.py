@@ -49,7 +49,8 @@ def _now() -> str:
 _SEMANTIC_KEYS = (
     "role", "kind", "severity", "expr", "trigger", "response", "signal",
     "when", "min_delay", "max_delay", "cycles", "disable_reset",
-    "obligation", "owner", "depth", "reset_cycles",
+    "obligation", "owner", "depth", "reset_cycles", "spec_sva_id",
+    "clock", "reset", "domain",
 )
 
 

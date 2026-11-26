@@ -1,0 +1,7 @@
+read_verilog -formal -sv /private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/src/rtl/dual_clock.sv /private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/src/generated/fv_prp_req_004_01_monitor.sv /private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/src/generated/fv_prp_req_004_01_top.sv
+prep -top fv_top_prp_req_004_01 -flatten
+async2sync
+memory_map
+opt -fast
+sat -seq 12 -tempinduct -tempinduct-skip 1 -set-at 1 fv_start 1 -set-at 2 fv_start 1 -set-at 3 fv_start 1 -set-at 4 fv_start 1 -set-at 5 fv_start 1 -set-at 6 fv_start 1 -set-at 7 fv_start 1 -set-at 8 fv_start 1 -set-at 9 fv_start 1 -set-at 10 fv_start 1 -set-at 11 fv_start 1 -set-at 12 fv_start 1 -prove-asserts
+

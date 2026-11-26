@@ -90,7 +90,7 @@ def _cmd_prepare(args: argparse.Namespace) -> int:
 
 def _cmd_approve_extraction(args: argparse.Namespace) -> int:
     """Compulsory human gate: record human acceptance of extracted requirements."""
-    from fv_pipeline import record
+    from fv_pipeline import record, extraction_digest
     from fv_common import sha256_file
 
     manifest = load_manifest(args.design)
@@ -109,9 +109,10 @@ def _cmd_approve_extraction(args: argparse.Namespace) -> int:
         "approved": True,
         "reviewer": str(args.reviewer).strip(),
         "reviewed_at": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(),
-        "requirements_sha256": sha256_file(req_path),
+        "requirements_sha256": extraction_digest(req_path),
         "requirements_md_sha256": sha256_file(paths["requirements"]) if paths["requirements"].is_file() else "",
         "spec_sha256": str((req.get("design") or {}).get("spec_sha256") or ""),
+        "spec_sva_sha256": sha256_file(req_path.parent / "spec_sva.json") if (req_path.parent / "spec_sva.json").is_file() else "",
         "stats": stats,
         "note": str(args.note or ""),
     }
@@ -260,14 +261,40 @@ def _cmd_review(args: argparse.Namespace) -> int:
 
 def _cmd_waveforms(args: argparse.Namespace) -> int:
     from fv_waveform import generate_for_results
+    from fv_run import _merge_waveform_artifacts, write_artifacts
     manifest = load_manifest(args.design)
-    res = generate_for_results(manifest)
+    results_path = Path(manifest["_paths"]["results"])
+    results = read_json(results_path) if results_path.is_file() else None
+    res = generate_for_results(manifest, results)
+    if results is not None:
+        _merge_waveform_artifacts(manifest, results, res, project_root(manifest))
+        try:
+            from fv_catalog import write_catalog
+            results.setdefault("artifacts", {}).update(write_catalog(manifest, results))
+        except Exception:
+            pass
+        write_json(results_path, results)
+        write_artifacts(manifest, results)
     if args.json:
         print(json.dumps(res, indent=2))
     else:
         print(f"waveforms: {res.get('generated',0)} generated")
         for a in res.get('artifacts',[])[:20]:
-            print(f"  {a.get('property')}: {a.get('svg')}")
+            print(f"  {a.get('property')}: vcd={a.get('vcd')} svg={a.get('svg')} gtkw={a.get('gtkw')}")
+    return 0
+
+
+def _cmd_catalog(args: argparse.Namespace) -> int:
+    from fv_catalog import write_catalog
+    manifest = load_manifest(args.design)
+    results_path = Path(manifest["_paths"]["results"])
+    results = read_json(results_path) if results_path.is_file() else None
+    arts = write_catalog(manifest, results)
+    if args.json:
+        print(json.dumps(arts, indent=2))
+    else:
+        print(f"catalog: {arts.get('catalog_md')}")
+        print(f"catalog: {arts.get('catalog_json')}")
     return 0
 def _cmd_matrix(args: argparse.Namespace) -> int:
     from fv_matrix import report
@@ -328,7 +355,7 @@ def _cmd_regress(args: argparse.Namespace) -> int:
         raise FvError("pass --design or --suite")
     manifest = load_manifest(args.design)
     from fv_pipeline import check_extraction_approval
-    check_extraction_approval(manifest)
+    check_extraction_approval(manifest, strict=bool(args.update))
     result = regress_design(
         manifest,
         args.baseline,
@@ -618,6 +645,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--design", required=True)
     p.add_argument("--json", action="store_true")
     p.set_defaults(func=_cmd_waveforms)
+    p = sub.add_parser("catalog", help="generate human-readable SVA catalog report")
+    p.add_argument("--design", required=True)
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(func=_cmd_catalog)
     p = sub.add_parser("matrix", help="report configuration matrix coverage")
     p.add_argument("--design", required=True)
     p.add_argument("--json", action="store_true")
@@ -647,8 +678,6 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--force", action="store_true", help="allow a failing baseline update")
     p.add_argument("--allow-review-errors", action="store_true",
                    help="record a baseline despite a review requiring action")
-    p.add_argument("--allow-unreviewed-extraction", action="store_true",
-                   help="allow pipeline to proceed without human extraction approval (non-signoff)")
     p.add_argument("--depth", type=int)
     p.add_argument("--timeout", type=int)
     p.add_argument("--jobs", type=int)
@@ -685,7 +714,6 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--no-regress", action="store_true")
     p.add_argument("--update-baseline", action="store_true")
     p.add_argument("--allow-review-errors", action="store_true")
-    p.add_argument("--allow-unreviewed-extraction", action="store_true")
     p.add_argument("--force", action="store_true")
     p.add_argument("--strict", action="store_true")
     p.add_argument("--quiet", action="store_true")

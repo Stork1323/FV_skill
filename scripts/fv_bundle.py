@@ -246,6 +246,7 @@ def prepare(manifest: dict[str, Any], out_path: Path | None = None,
             "blocking": bool(req.get("blocking")),
             "evidence": {"section": str(req.get("source") or ""),
                          "quote": str(req.get("evidence") or "")},
+            "spec_sva": req.get("spec_sva") or None,
         })
     features = extraction.get("features") or []
     interface = extract_interface(manifest)

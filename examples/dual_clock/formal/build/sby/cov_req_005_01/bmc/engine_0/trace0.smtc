@@ -1,0 +1,48 @@
+initial
+assume (= [_witness_.anyinit_auto_ff_cc_337_slice_62] false)
+assume (= [_witness_.anyinit_flatten_u_dut__procdff_32] false)
+assume (= [_witness_.anyinit_flatten_u_dut__procdff_42] false)
+assume (= [_witness_.anyinit_flatten_u_dut__procdff_47] true)
+assume (= [fv_cycle] #b0000000000000000)
+
+state 0
+assume (= [clk_a] false)
+assume (= [clk_b] false)
+assume (= [i_req] false)
+assume (= [rst_a_n] true)
+
+state 1
+assume (= [clk_a] false)
+assume (= [clk_b] false)
+assume (= [i_req] false)
+assume (= [rst_a_n] true)
+
+state 2
+assume (= [clk_a] false)
+assume (= [clk_b] false)
+assume (= [i_req] false)
+assume (= [rst_a_n] true)
+
+state 3
+assume (= [clk_a] false)
+assume (= [clk_b] false)
+assume (= [i_req] false)
+assume (= [rst_a_n] true)
+
+state 4
+assume (= [clk_a] false)
+assume (= [clk_b] false)
+assume (= [i_req] false)
+assume (= [rst_a_n] true)
+
+state 5
+assume (= [clk_a] false)
+assume (= [clk_b] false)
+assume (= [i_req] false)
+assume (= [rst_a_n] false)
+
+state 6
+assume (= [clk_a] false)
+assume (= [clk_b] false)
+assume (= [i_req] false)
+assume (= [rst_a_n] false)

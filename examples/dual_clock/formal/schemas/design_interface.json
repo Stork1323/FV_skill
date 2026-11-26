@@ -1,0 +1,105 @@
+{
+  "schema_version": "1.0",
+  "top": "dual_clock",
+  "top_source": "/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/src/rtl/dual_clock.sv",
+  "parameters": {},
+  "localparams": {},
+  "unresolved_constants": [],
+  "ports": [
+    {
+      "name": "clk_a",
+      "direction": "input",
+      "signed": false,
+      "width": 1,
+      "dims": [],
+      "ndims": 0,
+      "resolved": true,
+      "source_dims": [],
+      "unpacked_dims": []
+    },
+    {
+      "name": "rst_a_n",
+      "direction": "input",
+      "signed": false,
+      "width": 1,
+      "dims": [],
+      "ndims": 0,
+      "resolved": true,
+      "source_dims": [],
+      "unpacked_dims": []
+    },
+    {
+      "name": "clk_b",
+      "direction": "input",
+      "signed": false,
+      "width": 1,
+      "dims": [],
+      "ndims": 0,
+      "resolved": true,
+      "source_dims": [],
+      "unpacked_dims": []
+    },
+    {
+      "name": "rst_b_n",
+      "direction": "input",
+      "signed": false,
+      "width": 1,
+      "dims": [],
+      "ndims": 0,
+      "resolved": true,
+      "source_dims": [],
+      "unpacked_dims": []
+    },
+    {
+      "name": "i_req",
+      "direction": "input",
+      "signed": false,
+      "width": 1,
+      "dims": [],
+      "ndims": 0,
+      "resolved": true,
+      "source_dims": [],
+      "unpacked_dims": []
+    },
+    {
+      "name": "o_ack",
+      "direction": "output",
+      "signed": false,
+      "width": 1,
+      "dims": [],
+      "ndims": 0,
+      "resolved": true,
+      "source_dims": [],
+      "unpacked_dims": []
+    },
+    {
+      "name": "dbg_req_a",
+      "direction": "output",
+      "signed": false,
+      "width": 1,
+      "dims": [],
+      "ndims": 0,
+      "resolved": true,
+      "source_dims": [],
+      "unpacked_dims": []
+    },
+    {
+      "name": "dbg_req_b_sync",
+      "direction": "output",
+      "signed": false,
+      "width": 1,
+      "dims": [],
+      "ndims": 0,
+      "resolved": true,
+      "source_dims": [],
+      "unpacked_dims": []
+    }
+  ],
+  "sources": [
+    "/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/src/rtl/dual_clock.sv"
+  ],
+  "include_dirs": [],
+  "defines": [],
+  "yosys_json": "/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/schemas/design_interface.yosys.json",
+  "port_count": 8
+}

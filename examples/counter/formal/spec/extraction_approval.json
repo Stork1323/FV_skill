@@ -4,5 +4,8 @@
   "reviewer": "human",
   "reviewed_at": "2026-11-24T00:00:00+00:00",
   "scope": "counter example extraction",
-  "notes": "Example fixture approved for regression."
+  "notes": "Example fixture approved for regression.",
+  "requirements_sha256": "6205f8e15b7717270d28a00f17e699d062e56b1daa8d150225cbf00f97a90573",
+  "requirements_md_sha256": "2ca5c9213d83034c472fe99d72dd7ef80ef7d82a6230ad28cacf1e75cac3e06a",
+  "spec_sva_sha256": "d949d37f3fd157e66c87793a3786e9a03b697d4f100b147d21abb041f305eee5"
 }

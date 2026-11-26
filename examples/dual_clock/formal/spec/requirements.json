@@ -1,0 +1,136 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-11-26T01:58:07+00:00",
+  "generated_by": "formal-sva/fv_extract.py",
+  "design": {
+    "name": "dual_clock",
+    "top": "dual_clock",
+    "spec": "spec/spec.md",
+    "spec_sha256": "05c19cf9e3f0cb921452d82bfbcc0b58f1420b6777947d671bbbdb2596b64ab4",
+    "extraction": "formal/spec/requirements.md",
+    "extraction_sha256": "c0cd1c71c7e2e27784373ad315eb2f1aad4da79901307a058909b9ebf7fb3e37",
+    "design": "formal/design.json",
+    "rules_sha256": ""
+  },
+  "features": [
+    {
+      "id": "F01",
+      "class": "Mandatory",
+      "text": "Request capture in clock domain A",
+      "source": "",
+      "requirements": [
+        "REQ-002"
+      ]
+    },
+    {
+      "id": "F02",
+      "class": "Mandatory",
+      "text": "Request synchronization and acknowledge in clock domain B",
+      "source": "",
+      "requirements": [
+        "REQ-004",
+        "REQ-005"
+      ]
+    },
+    {
+      "id": "F03",
+      "class": "Mandatory",
+      "text": "Independent asynchronous resets for both domains",
+      "source": "",
+      "requirements": [
+        "REQ-001",
+        "REQ-003"
+      ]
+    }
+  ],
+  "requirements": [
+    {
+      "id": "REQ-001",
+      "title": "Domain A reset clears the captured request",
+      "feature": "F03",
+      "category": "reset",
+      "text": "While rst_a_n is low, dbg_req_a shall be 0.",
+      "source": "L36",
+      "evidence": "While `rst_a_n` is low, `dbg_req_a` shall be 0.",
+      "clarity": "clear",
+      "question": "",
+      "owner": "spec_agent",
+      "blocking": false,
+      "proposed": "reset_value",
+      "notes": ""
+    },
+    {
+      "id": "REQ-002",
+      "title": "Domain A captures a request on the next clock edge",
+      "feature": "F01",
+      "category": "functional",
+      "text": "When i_req is 1 and dbg_req_a is 0, dbg_req_a shall be 1 on the next rising edge of clk_a.",
+      "source": "L38",
+      "evidence": "When `i_req` is 1 and `dbg_req_a` is 0, `dbg_req_a` shall be 1 on the next rising edge of `clk_a`.",
+      "clarity": "clear",
+      "question": "",
+      "owner": "spec_agent",
+      "blocking": false,
+      "proposed": "next",
+      "notes": ""
+    },
+    {
+      "id": "REQ-003",
+      "title": "Domain B reset clears the acknowledge",
+      "feature": "F03",
+      "category": "reset",
+      "text": "While rst_b_n is low, o_ack shall be 0.",
+      "source": "L42",
+      "evidence": "While `rst_b_n` is low, `o_ack` shall be 0.",
+      "clarity": "clear",
+      "question": "",
+      "owner": "spec_agent",
+      "blocking": false,
+      "proposed": "reset_value",
+      "notes": ""
+    },
+    {
+      "id": "REQ-004",
+      "title": "Domain B acknowledges a synchronized request",
+      "feature": "F02",
+      "category": "functional",
+      "text": "When dbg_req_b_sync is 1 and o_ack is 0, o_ack shall be 1 on the next rising edge of clk_b.",
+      "source": "L44",
+      "evidence": "When the synchronized request `dbg_req_b_sync` is 1 and `o_ack` is 0, `o_ack` shall be 1 on the next rising edge of `clk_b`.",
+      "clarity": "clear",
+      "question": "",
+      "owner": "spec_agent",
+      "blocking": false,
+      "proposed": "next",
+      "notes": ""
+    },
+    {
+      "id": "REQ-005",
+      "title": "A synchronized acknowledge is reachable",
+      "feature": "F02",
+      "category": "verification",
+      "text": "A cycle with dbg_req_b_sync 1 and o_ack 1 shall be reachable after reset in domain B.",
+      "source": "L48",
+      "evidence": "A cycle with `dbg_req_b_sync` 1 and `o_ack` 1 shall be reachable after reset in domain B.",
+      "clarity": "clear",
+      "question": "",
+      "owner": "spec_agent",
+      "blocking": false,
+      "proposed": "cover",
+      "notes": ""
+    }
+  ],
+  "stats": {
+    "features": 3,
+    "requirements": 5,
+    "clear": 5,
+    "unclear": 0,
+    "blocking": 0,
+    "errors": 0,
+    "warnings": 0,
+    "ready": true
+  },
+  "errors": [],
+  "warnings": [],
+  "spec_sva": []
+}

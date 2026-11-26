@@ -1,0 +1,33 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-11-26T01:58:07+00:00",
+  "design": {
+    "name": "dual_clock",
+    "top": "dual_clock",
+    "spec": "spec/spec.md",
+    "spec_sha256": "05c19cf9e3f0cb921452d82bfbcc0b58f1420b6777947d671bbbdb2596b64ab4",
+    "extraction": "formal/spec/requirements.md",
+    "extraction_sha256": "c0cd1c71c7e2e27784373ad315eb2f1aad4da79901307a058909b9ebf7fb3e37",
+    "design": "formal/design.json",
+    "rules_sha256": ""
+  },
+  "overall": "CLEAR",
+  "summary": {
+    "open": 0,
+    "answered": 0,
+    "blocking": 0,
+    "by_owner": {}
+  },
+  "questions": [],
+  "answers_file": "formal/spec/answers.json",
+  "inputs": {
+    "requirements": "formal/spec/requirements.md",
+    "requirements_sha256": "c0cd1c71c7e2e27784373ad315eb2f1aad4da79901307a058909b9ebf7fb3e37",
+    "contract_sha256": "",
+    "spec_sha256": ""
+  },
+  "artifacts": {
+    "questions_json": "formal/reports/questions.json",
+    "questions_md": "formal/reports/questions.md"
+  }
+}

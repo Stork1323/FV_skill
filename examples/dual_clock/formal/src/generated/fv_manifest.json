@@ -1,0 +1,384 @@
+{
+  "schema_version": "1.0",
+  "generated_by": "formal-sva/fv_render.py",
+  "design": {
+    "name": "dual_clock",
+    "top": "dual_clock",
+    "clock": {
+      "signal": "clk_a",
+      "edge": "posedge"
+    },
+    "reset": {
+      "signal": "rst_a_n",
+      "active": "low",
+      "kind": "async",
+      "cycles": 2
+    },
+    "clocks": [
+      {
+        "name": "clk_a",
+        "signal": "clk_a",
+        "edge": "posedge",
+        "domain": "a"
+      },
+      {
+        "name": "clk_b",
+        "signal": "clk_b",
+        "edge": "posedge",
+        "domain": "b"
+      }
+    ],
+    "resets": [
+      {
+        "name": "rst_a",
+        "signal": "rst_a_n",
+        "active": "low",
+        "kind": "async",
+        "cycles": 2,
+        "domain": "a",
+        "clock": "clk_a"
+      },
+      {
+        "name": "rst_b",
+        "signal": "rst_b_n",
+        "active": "low",
+        "kind": "async",
+        "cycles": 3,
+        "domain": "b",
+        "clock": "clk_b"
+      }
+    ],
+    "domains": [],
+    "parameters": {},
+    "reset_cycles": 2,
+    "inputs": [
+      "clk_a",
+      "rst_a_n",
+      "clk_b",
+      "rst_b_n",
+      "i_req"
+    ],
+    "outputs": [
+      "o_ack",
+      "dbg_req_a",
+      "dbg_req_b_sync"
+    ]
+  },
+  "interface": {
+    "top": "dual_clock",
+    "ports": [
+      {
+        "name": "clk_a",
+        "direction": "input",
+        "signed": false,
+        "width": 1,
+        "dims": [],
+        "ndims": 0,
+        "resolved": true,
+        "source_dims": [],
+        "unpacked_dims": []
+      },
+      {
+        "name": "rst_a_n",
+        "direction": "input",
+        "signed": false,
+        "width": 1,
+        "dims": [],
+        "ndims": 0,
+        "resolved": true,
+        "source_dims": [],
+        "unpacked_dims": []
+      },
+      {
+        "name": "clk_b",
+        "direction": "input",
+        "signed": false,
+        "width": 1,
+        "dims": [],
+        "ndims": 0,
+        "resolved": true,
+        "source_dims": [],
+        "unpacked_dims": []
+      },
+      {
+        "name": "rst_b_n",
+        "direction": "input",
+        "signed": false,
+        "width": 1,
+        "dims": [],
+        "ndims": 0,
+        "resolved": true,
+        "source_dims": [],
+        "unpacked_dims": []
+      },
+      {
+        "name": "i_req",
+        "direction": "input",
+        "signed": false,
+        "width": 1,
+        "dims": [],
+        "ndims": 0,
+        "resolved": true,
+        "source_dims": [],
+        "unpacked_dims": []
+      },
+      {
+        "name": "o_ack",
+        "direction": "output",
+        "signed": false,
+        "width": 1,
+        "dims": [],
+        "ndims": 0,
+        "resolved": true,
+        "source_dims": [],
+        "unpacked_dims": []
+      },
+      {
+        "name": "dbg_req_a",
+        "direction": "output",
+        "signed": false,
+        "width": 1,
+        "dims": [],
+        "ndims": 0,
+        "resolved": true,
+        "source_dims": [],
+        "unpacked_dims": []
+      },
+      {
+        "name": "dbg_req_b_sync",
+        "direction": "output",
+        "signed": false,
+        "width": 1,
+        "dims": [],
+        "ndims": 0,
+        "resolved": true,
+        "source_dims": [],
+        "unpacked_dims": []
+      }
+    ],
+    "parameters": {}
+  },
+  "formal": {
+    "backend": "yosys",
+    "depth": 12,
+    "timeout_s": 60,
+    "jobs": 2,
+    "induction": true,
+    "reset_cycles": 2,
+    "memory_map": true
+  },
+  "start_signal": "fv_start",
+  "files": {
+    "dut": [
+      "/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/src/rtl/dual_clock.sv"
+    ],
+    "include_dirs": [],
+    "defines": [],
+    "assumptions": null,
+    "sva_checker": "formal/src/generated/fv_sva_checker.sv",
+    "bind": "bind dual_clock fv_sva_checker fv_bind (.*);"
+  },
+  "contract": {
+    "path": "formal/schemas/formal_contract.json",
+    "sha256": "25f47a3889d5272534d156ee590ff169491c49647e4a6d408dd2bb0e7cf2ba50"
+  },
+  "bundle": {
+    "path": "formal/schemas/input_bundle.json",
+    "sha256": "29907095b0dc688b1167ff2c3ac812b43d212ce123bde126398fc907cd6a24ad"
+  },
+  "properties": [
+    {
+      "id": "PRP-REQ-001-01",
+      "file_san": "prp_req_001_01",
+      "req": "REQ-001",
+      "feature": "F03",
+      "kind": "reset_value",
+      "role": "assert",
+      "title": "Domain A reset clears the captured request",
+      "severity": "error",
+      "mode": "assert",
+      "top": "fv_top_prp_req_001_01",
+      "monitor": "fv_mon_prp_req_001_01",
+      "monitor_file": "formal/src/generated/fv_prp_req_001_01_monitor.sv",
+      "top_file": "formal/src/generated/fv_prp_req_001_01_top.sv",
+      "depth": 12,
+      "clock": "clk_a",
+      "reset": "rst_a",
+      "domain": null,
+      "clock_signal": "clk_a",
+      "clock_edge": "posedge",
+      "reset_signal": "rst_a_n",
+      "reset_active": "low",
+      "reset_kind": "async",
+      "reset_cycles": 2,
+      "skip": 1,
+      "induction": false,
+      "cover_signal": null,
+      "tags": [
+        "reset",
+        "domain-a"
+      ],
+      "evidence": {
+        "section": "4.1 Domain A request capture",
+        "quote": "While rst_a_n is low, dbg_req_a shall be 0."
+      }
+    },
+    {
+      "id": "PRP-REQ-002-01",
+      "file_san": "prp_req_002_01",
+      "req": "REQ-002",
+      "feature": "F01",
+      "kind": "next",
+      "role": "assert",
+      "title": "Domain A captures a request on the next clock edge",
+      "severity": "error",
+      "mode": "assert",
+      "top": "fv_top_prp_req_002_01",
+      "monitor": "fv_mon_prp_req_002_01",
+      "monitor_file": "formal/src/generated/fv_prp_req_002_01_monitor.sv",
+      "top_file": "formal/src/generated/fv_prp_req_002_01_top.sv",
+      "depth": 12,
+      "clock": "clk_a",
+      "reset": "rst_a",
+      "domain": null,
+      "clock_signal": "clk_a",
+      "clock_edge": "posedge",
+      "reset_signal": "rst_a_n",
+      "reset_active": "low",
+      "reset_kind": "async",
+      "reset_cycles": 2,
+      "skip": 1,
+      "induction": true,
+      "cover_signal": null,
+      "tags": [
+        "capture",
+        "domain-a"
+      ],
+      "evidence": {
+        "section": "4.1 Domain A request capture",
+        "quote": "When i_req is 1 and dbg_req_a is 0, dbg_req_a shall be 1 on the next rising edge of clk_a."
+      }
+    },
+    {
+      "id": "PRP-REQ-003-01",
+      "file_san": "prp_req_003_01",
+      "req": "REQ-003",
+      "feature": "F03",
+      "kind": "reset_value",
+      "role": "assert",
+      "title": "Domain B reset clears the acknowledge",
+      "severity": "error",
+      "mode": "assert",
+      "top": "fv_top_prp_req_003_01",
+      "monitor": "fv_mon_prp_req_003_01",
+      "monitor_file": "formal/src/generated/fv_prp_req_003_01_monitor.sv",
+      "top_file": "formal/src/generated/fv_prp_req_003_01_top.sv",
+      "depth": 12,
+      "clock": "clk_b",
+      "reset": "rst_b",
+      "domain": null,
+      "clock_signal": "clk_b",
+      "clock_edge": "posedge",
+      "reset_signal": "rst_b_n",
+      "reset_active": "low",
+      "reset_kind": "async",
+      "reset_cycles": 3,
+      "skip": 1,
+      "induction": false,
+      "cover_signal": null,
+      "tags": [
+        "reset",
+        "domain-b"
+      ],
+      "evidence": {
+        "section": "4.2 Domain B synchronization and acknowledge",
+        "quote": "While rst_b_n is low, o_ack shall be 0."
+      }
+    },
+    {
+      "id": "PRP-REQ-004-01",
+      "file_san": "prp_req_004_01",
+      "req": "REQ-004",
+      "feature": "F02",
+      "kind": "next",
+      "role": "assert",
+      "title": "Domain B acknowledges a synchronized request",
+      "severity": "error",
+      "mode": "assert",
+      "top": "fv_top_prp_req_004_01",
+      "monitor": "fv_mon_prp_req_004_01",
+      "monitor_file": "formal/src/generated/fv_prp_req_004_01_monitor.sv",
+      "top_file": "formal/src/generated/fv_prp_req_004_01_top.sv",
+      "depth": 12,
+      "clock": "clk_b",
+      "reset": "rst_b",
+      "domain": null,
+      "clock_signal": "clk_b",
+      "clock_edge": "posedge",
+      "reset_signal": "rst_b_n",
+      "reset_active": "low",
+      "reset_kind": "async",
+      "reset_cycles": 3,
+      "skip": 1,
+      "induction": true,
+      "cover_signal": null,
+      "tags": [
+        "acknowledge",
+        "domain-b"
+      ],
+      "evidence": {
+        "section": "4.2 Domain B synchronization and acknowledge",
+        "quote": "When the synchronized request dbg_req_b_sync is 1 and o_ack is 0, o_ack shall be 1 on the next rising edge of clk_b."
+      }
+    },
+    {
+      "id": "COV-REQ-005-01",
+      "file_san": "cov_req_005_01",
+      "req": "REQ-005",
+      "feature": "F02",
+      "kind": "cover",
+      "role": "cover",
+      "title": "A synchronized acknowledge is reachable",
+      "severity": "info",
+      "mode": "cover",
+      "top": "fv_top_cov_req_005_01",
+      "monitor": "fv_cov_cov_req_005_01",
+      "monitor_file": "formal/src/generated/fv_cov_req_005_01_monitor.sv",
+      "top_file": "formal/src/generated/fv_cov_req_005_01_top.sv",
+      "depth": 12,
+      "clock": null,
+      "reset": null,
+      "domain": "b",
+      "clock_signal": "clk_b",
+      "clock_edge": "posedge",
+      "reset_signal": "rst_b_n",
+      "reset_active": "low",
+      "reset_kind": "async",
+      "reset_cycles": 3,
+      "skip": 0,
+      "induction": false,
+      "cover_signal": "fv_cover",
+      "tags": [
+        "coverage",
+        "domain-b"
+      ],
+      "evidence": {
+        "section": "4.3 Verification scenarios",
+        "quote": "A cycle with dbg_req_b_sync 1 and o_ack 1 shall be reachable after reset in domain B."
+      }
+    }
+  ],
+  "generated_files": [
+    "formal/src/generated/fv_sva_checker.sv",
+    "formal/src/generated/fv_prp_req_001_01_monitor.sv",
+    "formal/src/generated/fv_prp_req_001_01_top.sv",
+    "formal/src/generated/fv_prp_req_002_01_monitor.sv",
+    "formal/src/generated/fv_prp_req_002_01_top.sv",
+    "formal/src/generated/fv_prp_req_003_01_monitor.sv",
+    "formal/src/generated/fv_prp_req_003_01_top.sv",
+    "formal/src/generated/fv_prp_req_004_01_monitor.sv",
+    "formal/src/generated/fv_prp_req_004_01_top.sv",
+    "formal/src/generated/fv_cov_req_005_01_monitor.sv",
+    "formal/src/generated/fv_cov_req_005_01_top.sv"
+  ]
+}

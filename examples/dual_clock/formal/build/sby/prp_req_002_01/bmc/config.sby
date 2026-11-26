@@ -1,0 +1,13 @@
+[options]
+mode bmc
+depth 12
+
+[engines]
+smtbmc
+
+[script]
+read_verilog -formal -sv /private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/src/rtl/dual_clock.sv /private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/src/generated/fv_prp_req_002_01_monitor.sv /private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/src/generated/fv_prp_req_002_01_top.sv /private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_002_01/bmc_top.sv
+prep -top fv_top_prp_req_002_01_bmc -flatten
+async2sync
+memory_map
+opt -fast

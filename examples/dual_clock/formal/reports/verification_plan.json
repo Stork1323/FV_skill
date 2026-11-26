@@ -1,0 +1,167 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-11-26T01:58:51+00:00",
+  "design": {
+    "name": "dual_clock",
+    "top": "dual_clock",
+    "clock": {
+      "signal": "clk_a",
+      "edge": "posedge"
+    },
+    "reset": {
+      "signal": "rst_a_n",
+      "active": "low",
+      "kind": "async",
+      "cycles": 2
+    },
+    "clocks": [
+      {
+        "name": "clk_a",
+        "signal": "clk_a",
+        "edge": "posedge",
+        "domain": "a"
+      },
+      {
+        "name": "clk_b",
+        "signal": "clk_b",
+        "edge": "posedge",
+        "domain": "b"
+      }
+    ],
+    "resets": [
+      {
+        "name": "rst_a",
+        "signal": "rst_a_n",
+        "active": "low",
+        "kind": "async",
+        "cycles": 2,
+        "domain": "a",
+        "clock": "clk_a"
+      },
+      {
+        "name": "rst_b",
+        "signal": "rst_b_n",
+        "active": "low",
+        "kind": "async",
+        "cycles": 3,
+        "domain": "b",
+        "clock": "clk_b"
+      }
+    ],
+    "parameters": {},
+    "notes": "Two independent clock/reset domains; the synchronizer is a two-flop synchronizer."
+  },
+  "contract_sha256": "25f47a3889d5272534d156ee590ff169491c49647e4a6d408dd2bb0e7cf2ba50",
+  "config_scope": {},
+  "configurations": [],
+  "reset_plan": [
+    {
+      "name": "cold_reset",
+      "description": "Reset asserted for configured reset_cycles before checks arm."
+    }
+  ],
+  "exclusions": [],
+  "requirements": [
+    {
+      "requirement": "REQ-001",
+      "feature": "F03",
+      "disposition": "formalized",
+      "owner": null,
+      "checkers": [
+        {
+          "property": "PRP-REQ-001-01",
+          "kind": "reset_value",
+          "role": "assert",
+          "obligation": null,
+          "status": "BMC_PASS",
+          "proof_method": null
+        }
+      ],
+      "proof_dependencies": [],
+      "closure": "open"
+    },
+    {
+      "requirement": "REQ-002",
+      "feature": "F01",
+      "disposition": "formalized",
+      "owner": null,
+      "checkers": [
+        {
+          "property": "PRP-REQ-002-01",
+          "kind": "next",
+          "role": "assert",
+          "obligation": null,
+          "status": "PROVEN",
+          "proof_method": null
+        }
+      ],
+      "proof_dependencies": [],
+      "closure": "open"
+    },
+    {
+      "requirement": "REQ-003",
+      "feature": "F03",
+      "disposition": "formalized",
+      "owner": null,
+      "checkers": [
+        {
+          "property": "PRP-REQ-003-01",
+          "kind": "reset_value",
+          "role": "assert",
+          "obligation": null,
+          "status": "BMC_PASS",
+          "proof_method": null
+        }
+      ],
+      "proof_dependencies": [],
+      "closure": "open"
+    },
+    {
+      "requirement": "REQ-004",
+      "feature": "F02",
+      "disposition": "formalized",
+      "owner": null,
+      "checkers": [
+        {
+          "property": "PRP-REQ-004-01",
+          "kind": "next",
+          "role": "assert",
+          "obligation": null,
+          "status": "PROVEN",
+          "proof_method": null
+        }
+      ],
+      "proof_dependencies": [],
+      "closure": "open"
+    },
+    {
+      "requirement": "REQ-005",
+      "feature": "F02",
+      "disposition": "formalized",
+      "owner": null,
+      "checkers": [
+        {
+          "property": "COV-REQ-005-01",
+          "kind": "cover",
+          "role": "cover",
+          "obligation": null,
+          "status": "COVERED",
+          "proof_method": null
+        }
+      ],
+      "proof_dependencies": [],
+      "closure": "open"
+    }
+  ],
+  "closure_criteria": [
+    "All formalized requirements have discharged required assertions for the declared configuration.",
+    "All required covers are reached or explicitly proven unreachable.",
+    "All assumptions are satisfiable and reviewed for ownership/vacuity.",
+    "Review has no blocking ACTION_REQUIRED findings.",
+    "Regression baseline is updated only after review and signoff decision."
+  ],
+  "artifacts": {
+    "plan_json": "formal/reports/verification_plan.json",
+    "plan_md": "formal/reports/verification_plan.md"
+  }
+}

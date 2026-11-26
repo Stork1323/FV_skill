@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "approved": true,
+  "reviewer": "fixture-reviewer",
+  "reviewed_at": "2026-11-26T01:58:07.736365+00:00",
+  "requirements_sha256": "262ff2775ff5d2f045cee9897f289beeff9a8b0ab508d6b6cb03be5f7257e6e1",
+  "requirements_md_sha256": "c0cd1c71c7e2e27784373ad315eb2f1aad4da79901307a058909b9ebf7fb3e37",
+  "spec_sha256": "05c19cf9e3f0cb921452d82bfbcc0b58f1420b6777947d671bbbdb2596b64ab4",
+  "spec_sva_sha256": "d949d37f3fd157e66c87793a3786e9a03b697d4f100b147d21abb041f305eee5",
+  "stats": {
+    "features": 3,
+    "requirements": 5,
+    "clear": 5,
+    "unclear": 0,
+    "blocking": 0,
+    "errors": 0,
+    "warnings": 0,
+    "ready": true
+  },
+  "note": "dual-clock fixture"
+}

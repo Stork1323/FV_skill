@@ -457,7 +457,7 @@ def yosys_port_widths(sources: list[Path], include_dirs: list[Path], defines: li
         s = str(p)
         return f'"{s}"' if any(c.isspace() for c in s) else s
 
-    parts = ["read_verilog -formal -sv -DSYNTHESIS"]
+    parts = ["read_verilog -formal -sv -DSYNTHESIS -DVLSIT_SYNTHESIS"]
     for inc in include_dirs:
         parts.append(f"-I{qpath(inc)}")
     for d in defines:
@@ -565,8 +565,11 @@ def extract_interface(manifest: dict[str, Any], out_json: Path | None = None) ->
             )
 
     out_json = out_json or (Path(manifest["_paths"]["interface"]).with_suffix(".yosys.json"))
+    # Pass only explicit overrides as chparams; passing all resolved defaults
+    # can trigger Yosys bufnorm issues on some designs.
+    explicit_params = {k: v for k, v in parameters.items() if k in config}
     ydata = yosys_port_widths(src["sources"], src["include_dirs"], src["defines"], top, out_json,
-                              params=parameters)
+                              params=explicit_params)
     mod = ydata["modules"][top]
     yports = mod.get("ports") or {}
 

@@ -32,6 +32,7 @@ from fv_render import (
     _design_reset,
     _port_decl,
     _reset_active_expr,
+    _reset_cycles,
 )
 from fv_yosys import harness_files
 
@@ -48,14 +49,7 @@ def _qpath(path: Path | str) -> str:
 def _driver_lines(design: dict[str, Any], prop: dict[str, Any], induction: bool) -> list[str]:
     reset_sig, active, _kind = _design_reset(design, prop)
     clock, edge = _design_clock(design, prop)
-    # per-domain reset cycles
-    reset_obj = design.get("reset") or {}
-    if prop.get("reset"):
-        for r in (design.get("resets") or []):
-            if str(r.get("name") or r.get("signal")) == str(prop.get("reset")):
-                reset_obj = r; break
-    reset_cycles = int(reset_obj.get("cycles") or design.get("reset_cycles") or
-                       (design.get("reset") or {}).get("cycles") or 0)
+    reset_cycles = _reset_cycles(design, prop)
     active_value = 0 if active == "low" else 1
     inactive_value = 1 - active_value
     lines: list[str] = []
@@ -128,7 +122,7 @@ def _param_override(design: dict[str, Any]) -> str:
 
 def _read_command(harness: dict[str, Any], files: list[Path]) -> str:
     hfiles = harness.get("files") or {}
-    parts = ["read_verilog -formal -sv -DSYNTHESIS"]
+    parts = ["read_verilog -formal -sv"]
     for inc in hfiles.get("include_dirs") or []:
         parts.append(f"-I{_qpath(inc)}")
     for define in hfiles.get("defines") or []:
@@ -197,31 +191,44 @@ def _parse(output: str, mode: str) -> dict[str, Any]:
 def _counterexample(output: str, build: Path | None = None, limit: int = 160) -> list[str]:
     rows = [line.rstrip() for line in output.splitlines()
             if re.match(r"^\s*\d+\s+[\\$A-Za-z_]", line)]
-    if rows:
-        return rows[-limit:]
+    traces: list[str] = []
     if build is not None:
-        # SBY usually writes traces to files; include a compact trace_tb excerpt.
+        for vcd in sorted(build.rglob("trace*.vcd")):
+            traces.append(f"trace_vcd: {vcd}")
+        for fst in sorted(build.rglob("trace*.fst")):
+            traces.append(f"trace_fst: {fst}")
+        for yw in sorted(build.rglob("trace*.yw")):
+            traces.append(f"trace_yw: {yw}")
+        for tb in sorted(build.rglob("trace_tb.v")):
+            traces.append(f"trace_tb: {tb}")
+    seen = set()
+    uniq_traces = []
+    for t in traces:
+        if t not in seen:
+            seen.add(t)
+            uniq_traces.append(t)
+    if rows:
+        out = uniq_traces + rows
+        return out[-limit:] if len(out) > limit else out
+    if build is not None:
         for tb in sorted(build.rglob("trace_tb.v")):
             try:
                 tb_lines = tb.read_text(encoding="utf-8", errors="replace").splitlines()
             except Exception:
                 continue
-            excerpt: list[str] = [f"trace_tb: {tb}"]
+            excerpt: list[str] = []
             for line in tb_lines:
-                s = line.rstrip()
-                if not s:
+                s2 = line.rstrip()
+                if not s2:
                     continue
-                if re.search(r"\b(state \d+|PI_|UUT\.|cycle ==|Assert failed|initial begin|anyinit)", s):
-                    excerpt.append(s[:220])
+                if re.search(r"\b(state \d+|PI_|UUT\.|cycle ==|Assert failed|initial begin|anyinit)", s2):
+                    excerpt.append(s2[:220])
                 if len(excerpt) >= limit:
                     break
-            if len(excerpt) > 1:
-                return excerpt
-        for vcd in sorted(build.rglob("trace.vcd")):
-            return [f"trace_vcd: {vcd}"]
-        for yw in sorted(build.rglob("trace.yw")):
-            return [f"trace_yw: {yw}"]
-    return []
+            if excerpt:
+                out = uniq_traces + excerpt
+                return out[-limit:] if len(out) > limit else out
+    return uniq_traces
 
 
 def _find_log(build: Path, stem: str) -> Path | None:
@@ -296,7 +303,7 @@ def run_property(harness: dict[str, Any], prop: dict[str, Any], cfg: dict[str, A
         "role": prop.get("role"),
         "mode": mode,
         "depth": actual_depth,
-        "reset_cycles": int(design.get("reset_cycles") or
+        "reset_cycles": int(prop.get("reset_cycles") or design.get("reset_cycles") or
                             (design.get("reset") or {}).get("cycles") or 0),
         "timeout_s": actual_timeout,
         "backend": cfg.get("name"),

@@ -543,6 +543,10 @@
         },
         "domain": {
           "type": "string"
+        },
+        "spec_sva_id": {
+          "type": "string",
+          "description": "Requirement id (REQ-SVA-###) for compulsory spec-authored SVA."
         }
       }
     },

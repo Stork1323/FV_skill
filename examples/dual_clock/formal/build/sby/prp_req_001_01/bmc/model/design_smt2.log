@@ -1,0 +1,64 @@
+
+ /----------------------------------------------------------------------------\
+ |  yosys -- Yosys Open SYnthesis Suite                                       |
+ |  Copyright (C) 2012 - 2026  Claire Xenia Wolf <claire@yosyshq.com>         |
+ |  Distributed under an ISC-like license, type "license" to see terms        |
+ \----------------------------------------------------------------------------/
+ Yosys 0.71+post (git sha1 5628c13240f670b97aaaca3d47940c4afb8ff572, Release, AppleClang clang++ 21.0.0.21000401)
+
+-- Executing script file `design_smt2.ys' --
+
+1. Executing RTLIL frontend.
+Input filename: design_prep.il
+
+2. Executing HIERARCHY pass (managing design hierarchy).
+Attribute `top' found on module `fv_top_prp_req_001_01_bmc'. Setting top module to fv_top_prp_req_001_01_bmc.
+
+2.1. Analyzing design hierarchy..
+Top module:  \fv_top_prp_req_001_01_bmc
+
+2.2. Analyzing design hierarchy..
+Top module:  \fv_top_prp_req_001_01_bmc
+Removed 0 unused modules.
+Module fv_top_prp_req_001_01_bmc directly or indirectly contains formal properties -> setting "keep" attribute.
+
+3. Executing FORMALFF pass.
+
+4. Executing DFFUNMAP pass (unmap clock enable and synchronous reset from FFs).
+
+5. Printing statistics.
+
+=== fv_top_prp_req_001_01_bmc ===
+
+        +----------Local Count, excluding submodules.
+        | 
+       46 wires
+       91 wire bits
+       32 public wires
+       47 public wire bits
+        7 ports
+        7 port bits
+       29 cells
+        1   $add
+        4   $anyinit
+        1   $assert
+        2   $assume
+        1   $ff
+        1   $logic_and
+        1   $lt
+       11   $mux
+        1   $ne
+        3   $not
+        1   $reduce_bool
+        2   $scopeinfo
+
+6. Executing SMT2 backend.
+
+6.1. Executing BMUXMAP pass.
+
+6.2. Executing DEMUXMAP pass.
+Creating SMT-LIBv2 representation of module fv_top_prp_req_001_01_bmc.
+
+End of script. Logfile hash: ee3d499a5a, time: 0.00s, user: 0.00s, system: 0.00s, MEM: 13.59 MB peak
+Yosys 0.71+post (git sha1 5628c13240f670b97aaaca3d47940c4afb8ff572, Release, AppleClang clang++ 21.0.0.21000401)
+Time spent: 65% 2x write_smt2 (0 sec), 18% 2x read_rtlil (0 sec), ...

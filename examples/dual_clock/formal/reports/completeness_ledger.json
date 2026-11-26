@@ -1,0 +1,83 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-11-26T01:58:51+00:00",
+  "spec": "spec/spec.md",
+  "summary": {
+    "normative_statements": 8,
+    "mapped": 5,
+    "unmapped": 3,
+    "coverage_pct": 62.5
+  },
+  "entries": [
+    {
+      "id": "CLS-001",
+      "line": 29,
+      "text": "| `dbg_req_a` | out | 1 | `clk_a` | `rst_a_n` | Observation-only copy of the domain A request state. |",
+      "status": "unmapped",
+      "requirements": []
+    },
+    {
+      "id": "CLS-002",
+      "line": 30,
+      "text": "| `dbg_req_b_sync` | out | 1 | `clk_b` | `rst_b_n` | Observation-only copy of the synchronized request in domain B. |",
+      "status": "unmapped",
+      "requirements": []
+    },
+    {
+      "id": "CLS-003",
+      "line": 36,
+      "text": "While `rst_a_n` is low, `dbg_req_a` shall be 0.",
+      "status": "mapped",
+      "requirements": [
+        "REQ-001"
+      ]
+    },
+    {
+      "id": "CLS-004",
+      "line": 38,
+      "text": "When `i_req` is 1 and `dbg_req_a` is 0, `dbg_req_a` shall be 1 on the next rising edge of `clk_a`.",
+      "status": "mapped",
+      "requirements": [
+        "REQ-002"
+      ]
+    },
+    {
+      "id": "CLS-005",
+      "line": 42,
+      "text": "While `rst_b_n` is low, `o_ack` shall be 0.",
+      "status": "mapped",
+      "requirements": [
+        "REQ-003"
+      ]
+    },
+    {
+      "id": "CLS-006",
+      "line": 44,
+      "text": "When the synchronized request `dbg_req_b_sync` is 1 and `o_ack` is 0, `o_ack` shall be 1 on the next rising edge of `clk_b`.",
+      "status": "mapped",
+      "requirements": [
+        "REQ-004"
+      ]
+    },
+    {
+      "id": "CLS-007",
+      "line": 48,
+      "text": "A cycle with `dbg_req_b_sync` 1 and `o_ack` 1 shall be reachable after reset in domain B.",
+      "status": "mapped",
+      "requirements": [
+        "REQ-005"
+      ]
+    },
+    {
+      "id": "CLS-008",
+      "line": 53,
+      "text": "scope for this formal contract; only the logical transition behavior is checked.",
+      "status": "unmapped",
+      "requirements": []
+    }
+  ],
+  "artifacts": {
+    "ledger_json": "formal/reports/completeness_ledger.json",
+    "ledger_md": "formal/reports/completeness_ledger.md"
+  }
+}

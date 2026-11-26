@@ -50,7 +50,7 @@ You do not need to name scripts, stages or report files in the request.
     compared with the new run; a weaker status blocks the build. The baseline is
     never updated after a review error without an explicit exception.
 11. **Read-only spec/RTL.** The skill reads spec and RTL from their source paths; it does not copy them into the project. Provenance hashes record the exact inputs.
-12. **Spec SVA is leveraged.** SVA/property snippets found in the spec are extracted to `formal/spec/spec_sva.{json,md}` and must be reviewed/mapped as authoritative intent, not ignored.
+12. **Spec SVA is compulsory.** Every SVA/assertion found in the spec becomes a `REQ-SVA-###` requirement and must map to a contract property with `spec_sva_id` and the same role. Features and text requirements complement the SVA; they do not replace or weaken it. Only a human-approved `formal/spec/spec_sva_waivers.json` may excuse an item.
 13. **Multi-clock/reset domains.** Contracts may declare `design.clocks/resets` and per-property `clock/reset/domain`. Renderers and harnesses bind each property to its declared domain.
 14. **Waveform evidence per SVA.** For each property, the flow always emits **both a VCD and a snapshot SVG** in `formal/reports/waveforms/` (`PRP-XXX.vcd` + `PRP-XXX.svg`). Real counterexample/witness traces are copied when available; otherwise a synthetic sanity VCD is generated and clearly labeled, so human first-check always has waveform+snapshot.
 
@@ -120,7 +120,8 @@ python3 scripts/fv.py extract --design /path/to/project/formal/design.json
 
 # 4. Answer blocking questions in formal/spec/answers.json, then re-run extract.
 
-# 5. COMPULSORY HUMAN GATE: human reviews formal/spec/requirements.md and accepts extraction.
+# 5. COMPULSORY HUMAN GATE: human reviews formal/spec/requirements.md,
+#    formal/spec/spec_sva_requirements.md (if the spec has SVA), and accepts extraction.
 python3 scripts/fv.py approve-extraction --design /path/to/project/formal/design.json --reviewer "<human-name>"
 
 # 6. Write formal/schemas/formal_contract.json from
@@ -191,6 +192,8 @@ project/
       requirements.json             parsed extraction (generated)
       spec_sva.json / .md           SVA snippets found in spec (generated)
       spec_sva_import.json        contract-ready SVA import candidates (generated)
+      spec_sva_requirements.md    compulsory REQ-SVA requirements (generated)
+      spec_sva_waivers.json       human-approved SVA exceptions (commit when used)
       extraction_approval.json      COMPULSORY human acceptance (commit)
       answers.json                  clarification answers (commit when used)
     schemas/
@@ -607,10 +610,11 @@ that case.
 * Only top-level, clocked, synchronous behavior is checked. Internal FSMs, FIFO
   occupancy, arbitration fairness and cycle-accurate encodings are
   `not_formalizable` with a reason.
-* One clock domain, one reset per manifest/contract.
+* Multi-clock/reset domains are supported via `design.clocks/resets` and per-property `clock/reset/domain`. Each property is bound to one declared domain; cross-domain/CDC metastability, synchronizer MTBF, and analog timing are out of scope unless modeled explicitly.
 * Top-level parameters must be integers.
 * Yosys and SymbiYosys are live-qualified by the portable/live test suite in environments where they are installed; VC Formal/commercial backends are adapter/conformance-tested only until run on a licensed environment with pass/fail/timeout/vacuity qualification. See `docs/validation.md`.
 * Bounded proofs (`BMC_PASS`) are not proofs; only `PROVEN` is a proof, and only for the configuration in `scope.configuration`. Cover no-witness is `NOT_REACHED_WITHIN_BOUND` unless a backend explicitly proves unreachability.
+* Waveform evidence always includes both `PRP-XXX.vcd` and `PRP-XXX.svg`. Real backend traces are used when found; otherwise a clearly labeled synthetic sanity VCD is generated.
 
 See `docs/q3tui-integration.md` for the Q3TUI flow, `docs/reports.md` for report
 schemas and `docs/validation.md` for the validation record.

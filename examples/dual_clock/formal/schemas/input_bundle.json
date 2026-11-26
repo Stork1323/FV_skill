@@ -1,0 +1,339 @@
+{
+  "schema_version": "1.0",
+  "generated_by": "formal-sva/fv_bundle.py",
+  "design": {
+    "name": "dual_clock",
+    "top": "dual_clock",
+    "clock": {
+      "signal": "clk_a",
+      "edge": "posedge"
+    },
+    "reset": {
+      "signal": "rst_a_n",
+      "active": "low",
+      "kind": "async",
+      "cycles": 2
+    },
+    "parameters": {},
+    "formal": {
+      "backend": "yosys",
+      "depth": 12,
+      "timeout_s": 60,
+      "jobs": 2,
+      "induction": true,
+      "reset_cycles": 2
+    },
+    "spec_revision": null,
+    "description": null
+  },
+  "interface": {
+    "top": "dual_clock",
+    "ports": [
+      {
+        "name": "clk_a",
+        "direction": "input",
+        "signed": false,
+        "width": 1,
+        "dims": [],
+        "ndims": 0,
+        "resolved": true,
+        "source_dims": [],
+        "unpacked_dims": []
+      },
+      {
+        "name": "rst_a_n",
+        "direction": "input",
+        "signed": false,
+        "width": 1,
+        "dims": [],
+        "ndims": 0,
+        "resolved": true,
+        "source_dims": [],
+        "unpacked_dims": []
+      },
+      {
+        "name": "clk_b",
+        "direction": "input",
+        "signed": false,
+        "width": 1,
+        "dims": [],
+        "ndims": 0,
+        "resolved": true,
+        "source_dims": [],
+        "unpacked_dims": []
+      },
+      {
+        "name": "rst_b_n",
+        "direction": "input",
+        "signed": false,
+        "width": 1,
+        "dims": [],
+        "ndims": 0,
+        "resolved": true,
+        "source_dims": [],
+        "unpacked_dims": []
+      },
+      {
+        "name": "i_req",
+        "direction": "input",
+        "signed": false,
+        "width": 1,
+        "dims": [],
+        "ndims": 0,
+        "resolved": true,
+        "source_dims": [],
+        "unpacked_dims": []
+      },
+      {
+        "name": "o_ack",
+        "direction": "output",
+        "signed": false,
+        "width": 1,
+        "dims": [],
+        "ndims": 0,
+        "resolved": true,
+        "source_dims": [],
+        "unpacked_dims": []
+      },
+      {
+        "name": "dbg_req_a",
+        "direction": "output",
+        "signed": false,
+        "width": 1,
+        "dims": [],
+        "ndims": 0,
+        "resolved": true,
+        "source_dims": [],
+        "unpacked_dims": []
+      },
+      {
+        "name": "dbg_req_b_sync",
+        "direction": "output",
+        "signed": false,
+        "width": 1,
+        "dims": [],
+        "ndims": 0,
+        "resolved": true,
+        "source_dims": [],
+        "unpacked_dims": []
+      }
+    ],
+    "parameters": {},
+    "localparams": {},
+    "unresolved_constants": []
+  },
+  "features": [
+    {
+      "id": "F01",
+      "class": "Mandatory",
+      "text": "Request capture in clock domain A",
+      "source": "",
+      "requirements": [
+        "REQ-002"
+      ]
+    },
+    {
+      "id": "F02",
+      "class": "Mandatory",
+      "text": "Request synchronization and acknowledge in clock domain B",
+      "source": "",
+      "requirements": [
+        "REQ-004",
+        "REQ-005"
+      ]
+    },
+    {
+      "id": "F03",
+      "class": "Mandatory",
+      "text": "Independent asynchronous resets for both domains",
+      "source": "",
+      "requirements": [
+        "REQ-001",
+        "REQ-003"
+      ]
+    }
+  ],
+  "requirements": [
+    {
+      "id": "REQ-001",
+      "text": "While rst_a_n is low, dbg_req_a shall be 0.",
+      "category": "reset",
+      "feature": "F03",
+      "sva_hint": "property",
+      "source_section": "L36",
+      "optional": false,
+      "modules": [],
+      "ambiguity_score": null,
+      "clarity": "clear",
+      "question": "",
+      "owner": "spec_agent",
+      "blocking": false,
+      "evidence": {
+        "section": "L36",
+        "quote": "While `rst_a_n` is low, `dbg_req_a` shall be 0."
+      },
+      "spec_sva": null
+    },
+    {
+      "id": "REQ-002",
+      "text": "When i_req is 1 and dbg_req_a is 0, dbg_req_a shall be 1 on the next rising edge of clk_a.",
+      "category": "functional",
+      "feature": "F01",
+      "sva_hint": "property",
+      "source_section": "L38",
+      "optional": false,
+      "modules": [],
+      "ambiguity_score": null,
+      "clarity": "clear",
+      "question": "",
+      "owner": "spec_agent",
+      "blocking": false,
+      "evidence": {
+        "section": "L38",
+        "quote": "When `i_req` is 1 and `dbg_req_a` is 0, `dbg_req_a` shall be 1 on the next rising edge of `clk_a`."
+      },
+      "spec_sva": null
+    },
+    {
+      "id": "REQ-003",
+      "text": "While rst_b_n is low, o_ack shall be 0.",
+      "category": "reset",
+      "feature": "F03",
+      "sva_hint": "property",
+      "source_section": "L42",
+      "optional": false,
+      "modules": [],
+      "ambiguity_score": null,
+      "clarity": "clear",
+      "question": "",
+      "owner": "spec_agent",
+      "blocking": false,
+      "evidence": {
+        "section": "L42",
+        "quote": "While `rst_b_n` is low, `o_ack` shall be 0."
+      },
+      "spec_sva": null
+    },
+    {
+      "id": "REQ-004",
+      "text": "When dbg_req_b_sync is 1 and o_ack is 0, o_ack shall be 1 on the next rising edge of clk_b.",
+      "category": "functional",
+      "feature": "F02",
+      "sva_hint": "property",
+      "source_section": "L44",
+      "optional": false,
+      "modules": [],
+      "ambiguity_score": null,
+      "clarity": "clear",
+      "question": "",
+      "owner": "spec_agent",
+      "blocking": false,
+      "evidence": {
+        "section": "L44",
+        "quote": "When the synchronized request `dbg_req_b_sync` is 1 and `o_ack` is 0, `o_ack` shall be 1 on the next rising edge of `clk_b`."
+      },
+      "spec_sva": null
+    },
+    {
+      "id": "REQ-005",
+      "text": "A cycle with dbg_req_b_sync 1 and o_ack 1 shall be reachable after reset in domain B.",
+      "category": "verification",
+      "feature": "F02",
+      "sva_hint": "cover",
+      "source_section": "L48",
+      "optional": false,
+      "modules": [],
+      "ambiguity_score": null,
+      "clarity": "clear",
+      "question": "",
+      "owner": "spec_agent",
+      "blocking": false,
+      "evidence": {
+        "section": "L48",
+        "quote": "A cycle with `dbg_req_b_sync` 1 and `o_ack` 1 shall be reachable after reset in domain B."
+      },
+      "spec_sva": null
+    }
+  ],
+  "parameters": {},
+  "constraints": [],
+  "spec": {
+    "markdown": "spec/spec.md",
+    "headings": [
+      {
+        "level": 1,
+        "text": "Dual-Clock Request/Ack — Block Specification"
+      },
+      {
+        "level": 2,
+        "text": "1. Overview"
+      },
+      {
+        "level": 2,
+        "text": "2. Key Features"
+      },
+      {
+        "level": 2,
+        "text": "3. Interface"
+      },
+      {
+        "level": 3,
+        "text": "Clock and reset"
+      },
+      {
+        "level": 2,
+        "text": "4. Functional Description"
+      },
+      {
+        "level": 3,
+        "text": "4.1 Domain A request capture"
+      },
+      {
+        "level": 3,
+        "text": "4.2 Domain B synchronization and acknowledge"
+      },
+      {
+        "level": 3,
+        "text": "4.3 Verification scenarios"
+      },
+      {
+        "level": 2,
+        "text": "5. Notes and Open Items"
+      }
+    ],
+    "structured": null,
+    "config": null,
+    "extraction": "formal/spec/requirements.md",
+    "extraction_json": "formal/spec/requirements.json",
+    "spec_sva_json": "formal/spec/spec_sva.json"
+  },
+  "spec_sva": [],
+  "rules_sha256": "fdaf3dc78ee66abd65ab28ec92ddf779c60fc04ac2788047595a801b1dce32c9",
+  "sources": {
+    "structured_spec": null,
+    "final_config": null,
+    "spec_markdown": {
+      "path": "spec/spec.md",
+      "sha256": "05c19cf9e3f0cb921452d82bfbcc0b58f1420b6777947d671bbbdb2596b64ab4"
+    },
+    "requirements": {
+      "path": "formal/spec/requirements.md",
+      "sha256": "c0cd1c71c7e2e27784373ad315eb2f1aad4da79901307a058909b9ebf7fb3e37"
+    },
+    "extraction": {
+      "path": "formal/spec/requirements.json",
+      "sha256": "ced39f7fefb8312dfabc7c8f7a7fa0502633e995ef2cd7ab8ad124e4aa443fee"
+    },
+    "design": {
+      "path": "formal/design.json",
+      "sha256": "29213918610ce4ebac1ce4bd998cad9e5713d60e6429740009141f073e162d8c"
+    },
+    "rtl": [
+      {
+        "path": "src/rtl/dual_clock.sv",
+        "sha256": "5f53adb6593e4c7ebe4156848b76272812e83f30084933aa91666d3f0a7d5203"
+      }
+    ],
+    "rtl_set_sha256": "3d75d9af7a6fa4b56695be4c68444e298ec81b8ce3eca1e4e7d77a77bc99d6c7"
+  }
+}

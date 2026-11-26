@@ -1,0 +1,148 @@
+{
+  "schema_version": "1.0",
+  "design": {
+    "name": "dual_clock",
+    "top": "dual_clock",
+    "clock": {"signal": "clk_a", "edge": "posedge"},
+    "reset": {"signal": "rst_a_n", "active": "low", "kind": "async", "cycles": 2},
+    "clocks": [
+      {"name": "clk_a", "signal": "clk_a", "edge": "posedge", "domain": "a"},
+      {"name": "clk_b", "signal": "clk_b", "edge": "posedge", "domain": "b"}
+    ],
+    "resets": [
+      {"name": "rst_a", "signal": "rst_a_n", "active": "low", "kind": "async", "cycles": 2, "domain": "a", "clock": "clk_a"},
+      {"name": "rst_b", "signal": "rst_b_n", "active": "low", "kind": "async", "cycles": 3, "domain": "b", "clock": "clk_b"}
+    ],
+    "parameters": {},
+    "notes": "Two independent clock/reset domains; the synchronizer is a two-flop synchronizer."
+  },
+  "requirements": [
+    {
+      "id": "REQ-001",
+      "feature": "F03",
+      "disposition": "formalized",
+      "reason": "The domain A reset value is a state invariant checked on the clk_a reset domain.",
+      "evidence": {"section": "4.1 Domain A request capture", "quote": "While rst_a_n is low, dbg_req_a shall be 0."},
+      "properties": ["PRP-REQ-001-01"]
+    },
+    {
+      "id": "REQ-002",
+      "feature": "F01",
+      "disposition": "formalized",
+      "reason": "The capture transition is a next-cycle relation in the clk_a domain.",
+      "evidence": {"section": "4.1 Domain A request capture", "quote": "When i_req is 1 and dbg_req_a is 0, dbg_req_a shall be 1 on the next rising edge of clk_a."},
+      "properties": ["PRP-REQ-002-01"]
+    },
+    {
+      "id": "REQ-003",
+      "feature": "F03",
+      "disposition": "formalized",
+      "reason": "The domain B reset value is a state invariant checked on the clk_b reset domain.",
+      "evidence": {"section": "4.2 Domain B synchronization and acknowledge", "quote": "While rst_b_n is low, o_ack shall be 0."},
+      "properties": ["PRP-REQ-003-01"]
+    },
+    {
+      "id": "REQ-004",
+      "feature": "F02",
+      "disposition": "formalized",
+      "reason": "The acknowledge transition is a next-cycle relation in the clk_b domain.",
+      "evidence": {"section": "4.2 Domain B synchronization and acknowledge", "quote": "When the synchronized request dbg_req_b_sync is 1 and o_ack is 0, o_ack shall be 1 on the next rising edge of clk_b."},
+      "properties": ["PRP-REQ-004-01"]
+    },
+    {
+      "id": "REQ-005",
+      "feature": "F02",
+      "disposition": "formalized",
+      "reason": "The reachability scenario is checked by a cover property in the clk_b domain.",
+      "evidence": {"section": "4.3 Verification scenarios", "quote": "A cycle with dbg_req_b_sync 1 and o_ack 1 shall be reachable after reset in domain B."},
+      "properties": ["COV-REQ-005-01"]
+    }
+  ],
+  "properties": [
+    {
+      "id": "PRP-REQ-001-01",
+      "req": "REQ-001",
+      "feature": "F03",
+      "title": "Domain A reset clears the captured request",
+      "kind": "reset_value",
+      "role": "assert",
+      "clock": "clk_a",
+      "reset": "rst_a",
+      "expr": "dbg_req_a == 1'b0",
+      "disable_reset": false,
+      "severity": "error",
+      "tags": ["reset", "domain-a"],
+      "evidence": {"section": "4.1 Domain A request capture", "quote": "While rst_a_n is low, dbg_req_a shall be 0."}
+    },
+    {
+      "id": "PRP-REQ-002-01",
+      "req": "REQ-002",
+      "feature": "F01",
+      "title": "Domain A captures a request on the next clock edge",
+      "kind": "next",
+      "role": "assert",
+      "clock": "clk_a",
+      "reset": "rst_a",
+      "trigger": "i_req && !dbg_req_a",
+      "expr": "dbg_req_a == 1'b1",
+      "severity": "error",
+      "tags": ["capture", "domain-a"],
+      "evidence": {"section": "4.1 Domain A request capture", "quote": "When i_req is 1 and dbg_req_a is 0, dbg_req_a shall be 1 on the next rising edge of clk_a."}
+    },
+    {
+      "id": "PRP-REQ-003-01",
+      "req": "REQ-003",
+      "feature": "F03",
+      "title": "Domain B reset clears the acknowledge",
+      "kind": "reset_value",
+      "role": "assert",
+      "clock": "clk_b",
+      "reset": "rst_b",
+      "expr": "o_ack == 1'b0",
+      "disable_reset": false,
+      "severity": "error",
+      "tags": ["reset", "domain-b"],
+      "evidence": {"section": "4.2 Domain B synchronization and acknowledge", "quote": "While rst_b_n is low, o_ack shall be 0."}
+    },
+    {
+      "id": "PRP-REQ-004-01",
+      "req": "REQ-004",
+      "feature": "F02",
+      "title": "Domain B acknowledges a synchronized request",
+      "kind": "next",
+      "role": "assert",
+      "clock": "clk_b",
+      "reset": "rst_b",
+      "trigger": "dbg_req_b_sync && !o_ack",
+      "expr": "o_ack == 1'b1",
+      "severity": "error",
+      "tags": ["acknowledge", "domain-b"],
+      "evidence": {"section": "4.2 Domain B synchronization and acknowledge", "quote": "When the synchronized request dbg_req_b_sync is 1 and o_ack is 0, o_ack shall be 1 on the next rising edge of clk_b."}
+    },
+    {
+      "id": "COV-REQ-005-01",
+      "req": "REQ-005",
+      "feature": "F02",
+      "title": "A synchronized acknowledge is reachable",
+      "kind": "cover",
+      "role": "cover",
+      "domain": "b",
+      "expr": "dbg_req_b_sync && o_ack",
+      "severity": "info",
+      "tags": ["coverage", "domain-b"],
+      "evidence": {"section": "4.3 Verification scenarios", "quote": "A cycle with dbg_req_b_sync 1 and o_ack 1 shall be reachable after reset in domain B."}
+    }
+  ],
+  "scope": {
+    "configuration": {},
+    "proven": [
+      "BMC and induction per property, with each property bound to its declared clock/reset domain"
+    ],
+    "not_proven": [
+      "Metastability, MTBF and analog CDC effects are out of scope",
+      "The two-flop synchronizer is a logical model only"
+    ],
+    "notes": "Dual-clock fixture for per-property clock/reset and domain resolution."
+  },
+  "metadata": {"author": "formal-sva fixture", "backend": "yosys"}
+}

@@ -18,6 +18,7 @@ from fv_common import (
     project_root,
     read_json,
     sha256_file,
+    sha256_obj,
     sha256_paths,
     write_json,
 )
@@ -160,12 +161,38 @@ def require(manifest: dict[str, Any], step: str,
     return errors
 
 
-def check_extraction_approval(manifest: dict[str, Any]) -> dict[str, Any]:
-    """Compulsory human gate. Raises FvError if not approved."""
+def extraction_digest(path: Path) -> str:
+    """Hash the reviewable meaning of an extraction, not volatile metadata.
+
+    ``requirements.json`` is regenerated on every extract.  Its timestamp and
+    the extraction-file hash would otherwise invalidate a human approval that
+    still refers to exactly the same requirements.
+    """
+    doc = read_json(path)
+    if isinstance(doc, dict):
+        doc = dict(doc)
+        doc.pop("generated_at", None)
+        design = doc.get("design")
+        if isinstance(design, dict):
+            design = dict(design)
+            design.pop("extraction_sha256", None)
+            design.pop("rules_sha256", None)
+            doc["design"] = design
+    return sha256_obj(doc)
+
+
+def check_extraction_approval(manifest: dict[str, Any],
+                              strict: bool = False) -> dict[str, Any]:
+    """Compulsory human gate. Raises FvError if not approved.
+
+    ``strict`` is used for signoff and baseline updates.  It ignores the
+    test-only bypass and refuses an approval that does not bind the current
+    requirements and spec SVA.
+    """
     import os
-    from fv_common import FvError, sha256_file
-    if os.environ.get("FV_ALLOW_MISSING_EXTRACTION_APPROVAL") == "1":
-        return {"approved": True, "reviewer": "TEST_BYPASS", "reviewed_at": "", "requirements_sha256": "", "test_bypass": True}
+    if not strict and os.environ.get("FV_ALLOW_MISSING_EXTRACTION_APPROVAL") == "1":
+        return {"approved": True, "reviewer": "TEST_BYPASS", "reviewed_at": "",
+                "requirements_sha256": "", "test_bypass": True}
     root = project_root(manifest)
     spec_dir = Path(manifest["_paths"].get("spec_dir", root / "formal" / "spec"))
     approval_path = spec_dir / "extraction_approval.json"
@@ -180,13 +207,32 @@ def check_extraction_approval(manifest: dict[str, Any]) -> dict[str, Any]:
         raise FvError("COMPULSORY HUMAN GATE: extraction_approval.json exists but approved is not true.")
     if not str(approval.get("reviewer") or "").strip():
         raise FvError("COMPULSORY HUMAN GATE: extraction_approval.json requires reviewer.")
+    if strict and not str(approval.get("reviewed_at") or "").strip():
+        raise FvError("COMPULSORY HUMAN GATE: extraction_approval.json requires reviewed_at for signoff.")
     req_path = spec_dir / "requirements.json"
     if req_path.is_file():
-        cur_hash = sha256_file(req_path)
+        cur_hash = extraction_digest(req_path)
         ap_hash = str(approval.get("requirements_sha256") or "")
-        if ap_hash and ap_hash != cur_hash:
+        if not ap_hash:
+            if strict:
+                raise FvError(
+                    "COMPULSORY HUMAN GATE: approval does not bind the extracted "
+                    "requirements; re-run approve-extraction.")
+        elif ap_hash != cur_hash:
             raise FvError(
                 f"COMPULSORY HUMAN GATE: extraction approval is stale (requirements_sha256 {ap_hash!r} != {cur_hash!r}). Re-review and re-approve.")
+    sva_path = spec_dir / "spec_sva.json"
+    ap_sva = str(approval.get("spec_sva_sha256") or "")
+    if sva_path.is_file():
+        cur_sva = sha256_file(sva_path)
+        if not ap_sva:
+            raise FvError(
+                "COMPULSORY HUMAN GATE: approval does not bind the spec SVA hash; "
+                "re-run approve-extraction so the human accepts the SVA requirements too.")
+        if ap_sva != cur_sva:
+            raise FvError(
+                "COMPULSORY HUMAN GATE: spec SVA changed since approval "
+                f"(spec_sva_sha256 {ap_sva!r} != {cur_sva!r}). Re-review and re-approve.")
     return approval
 
 
@@ -286,6 +332,23 @@ def run(manifest: dict[str, Any], *, contract: str | Path | None = None,
         "unclear": extraction["stats"]["unclear"],
     })
 
+    # Spec-authored SVA is compulsory: every snippet must be a requirement.
+    spec_sva_items = extraction.get("spec_sva") or []
+    sva_reqs = [q for q in extraction["requirements"] if q.get("spec_sva")]
+    missing_sva = []
+    for item in spec_sva_items:
+        raw = str(item.get("text") or "").strip()
+        if raw and not any(str((q.get("spec_sva") or {}).get("text") or "").strip() == raw
+                           for q in sva_reqs):
+            missing_sva.append(str(item.get("line") or "?"))
+    if missing_sva:
+        return _fail(
+            manifest, "extract",
+            "spec contains SVA/assertion text with no compulsory REQ-SVA requirement "
+            f"(spec lines: {', '.join(missing_sva)}); re-run extract and approve the "
+            "updated requirements",
+            {"missing_spec_sva_lines": missing_sva})
+
     from fv_questions import collect as collect_questions
     questions = collect_questions(manifest, bundle=extraction, contract={})
     if (questions.get("summary") or {}).get("blocking", 0):
@@ -296,8 +359,9 @@ def run(manifest: dict[str, Any], *, contract: str | Path | None = None,
             {"questions": questions.get("artifacts") or {}})
 
     # Compulsory human gate: extracted requirements must be human-approved before any downstream step.
+    # The pipeline produces signoff, so it never accepts the test-only bypass.
     try:
-        check_extraction_approval(manifest)
+        check_extraction_approval(manifest, strict=True)
     except Exception as exc:
         return _fail(manifest, "extract", str(exc), {"human_gate": "extraction_approval"})
 
@@ -379,7 +443,7 @@ def run(manifest: dict[str, Any], *, contract: str | Path | None = None,
         results["review_findings"] = review_doc.get("findings") or []
         results["artifacts"].update(artifacts)
         from fv_run import write_artifacts
-        write_artifacts(manifest, results)
+        write_artifacts(manifest, results, allow_review_errors=allow_review_errors)
         review_status = ("failed" if review_doc["overall"] == "ACTION_REQUIRED"
                          else "ok")
         record(manifest, "review", status=review_status,
@@ -436,7 +500,7 @@ def run(manifest: dict[str, Any], *, contract: str | Path | None = None,
 
     results["signoff"] = compute_signoff(results, manifest, regress_doc,
                                          allow_review_errors=allow_review_errors)
-    write_artifacts(manifest, results)
+    write_artifacts(manifest, results, allow_review_errors=allow_review_errors)
 
     verification = results["summary"]["overall"]
     overall = "PASS"

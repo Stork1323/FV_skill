@@ -41,7 +41,7 @@ REQUIREMENT_OWNERS = {"dut", "environment", "both", "none"}
 PROPERTY_OWNERS = {"dut", "environment", "verification"}
 DELAY_SOURCES = {"spec", "interface", "project", "engineering_decision"}
 
-DESIGN_KEYS = {"name", "top", "clock", "reset", "clocks", "resets", "domains", "parameters", "notes"}
+DESIGN_KEYS = {"name", "top", "clock", "reset", "clocks", "resets", "parameters", "notes"}
 CLOCK_KEYS = {"name", "signal", "edge", "domain"}
 RESET_KEYS = {"name", "signal", "active", "kind", "cycles", "domain", "clock"}
 REQUIREMENT_KEYS = {"id", "feature", "disposition", "reason", "limitations",
@@ -53,7 +53,7 @@ PROPERTY_KEYS = {
     "disable_reset", "depth", "severity", "tags", "evidence", "notes",
     "obligation", "owner", "intent", "proof", "configurations",
     "delay_source", "induction_helpers", "limitations",
-    "clock", "reset", "domain",
+    "clock", "reset", "domain", "spec_sva_id",
 }
 INTENT_KEYS = {"type", "owner", "sampling", "reset_policy", "antecedent",
                "consequent", "delay", "bound_source", "bound_justification"}
@@ -452,6 +452,26 @@ def validate_expr(expr: str, interface: dict[str, Any], result: Validation,
     _check_selectors(expr, interface, result, where)
 
 
+def _spec_sva_waivers(root: Path) -> dict[str, dict[str, Any]]:
+    """Human-approved exceptions for spec-authored SVA that cannot be formalized."""
+    path = root / "formal" / "spec" / "spec_sva_waivers.json"
+    if not path.is_file():
+        return {}
+    try:
+        data = read_json(path)
+    except Exception:
+        return {}
+    if not isinstance(data, dict) or data.get("approved") is not True:
+        return {}
+    items = data.get("items") or {}
+    out: dict[str, dict[str, Any]] = {}
+    if isinstance(items, dict):
+        for key, value in items.items():
+            if isinstance(value, dict) and len(str(value.get("reason") or "").strip()) >= 20:
+                out[str(key)] = value
+    return out
+
+
 def validate_contract(manifest: dict[str, Any], contract: dict[str, Any],
                       bundle: dict[str, Any], interface: dict[str, Any],
                       strict: bool = False) -> Validation:
@@ -648,6 +668,18 @@ def validate_contract(manifest: dict[str, Any], contract: dict[str, Any],
 
     # -- requirements --------------------------------------------------------------------------
     bundle_reqs = {str(q["id"]): q for q in bundle.get("requirements") or []}
+    spec_sva_reqs = {rid: q for rid, q in bundle_reqs.items() if q.get("spec_sva")}
+    spec_sva_waivers = _spec_sva_waivers(root)
+    # Every spec-authored SVA item must have a compulsory requirement.
+    for si, item in enumerate(bundle.get("spec_sva") or [], 1):
+        raw = str(item.get("text") or "").strip()
+        if not raw:
+            continue
+        if not any(str((q.get("spec_sva") or {}).get("text") or "").strip() == raw
+                   for q in spec_sva_reqs.values()):
+            r.error("SPEC_SVA_REQUIREMENT_MISSING", f"spec_sva[{si}]",
+                    "spec contains SVA/assertion text that is not represented by a "
+                    "REQ-SVA-### requirement; re-run extraction and approve the updated requirements")
     reqs = contract.get("requirements") or []
     seen_reqs: set[str] = set()
     for i, req in enumerate(reqs):
@@ -671,6 +703,22 @@ def validate_contract(manifest: dict[str, Any], contract: dict[str, Any],
         disp = req.get("disposition")
         if disp not in DISPOSITIONS:
             r.error("REQ_DISPOSITION", where, f"invalid disposition {disp!r}")
+        spec_sva = bundle_reqs[rid].get("spec_sva")
+        if spec_sva:
+            if disp in ("not_formalizable", "out_of_scope", "partially_formalized"):
+                if rid not in spec_sva_waivers:
+                    r.error("SPEC_SVA_NOT_FORMALIZED", where,
+                            "spec-authored SVA is compulsory and cannot be marked "
+                            f"{disp!r} without a human-approved entry in "
+                            "formal/spec/spec_sva_waivers.json")
+                else:
+                    r.warn("SPEC_SVA_WAIVED", where,
+                           "spec-authored SVA is waived by human approval; this is an "
+                           "explicit exception, not a pass")
+            want_role = str((spec_sva or {}).get("role") or "assert").lower()
+            allowed = {"assert", "assume", "cover"}
+            if want_role not in allowed:
+                r.error("SPEC_SVA_ROLE", where, f"unknown spec SVA role {want_role!r}")
         owner = str(req.get("owner") or "")
         if owner and owner not in REQUIREMENT_OWNERS:
             r.error("REQ_OWNER", where,
@@ -1000,8 +1048,37 @@ def validate_contract(manifest: dict[str, Any], contract: dict[str, Any],
                     "the contract has a configuration matrix; each property must name "
                     "the configurations it covers")
 
-    # -- disposition <-> properties ------------------------------------------------------------
+    # -- compulsory spec-authored SVA mapping -------------------------------------------------
     req_map = {str(q.get("id")): q for q in reqs if isinstance(q, dict) and q.get("id")}
+    for rid, q in spec_sva_reqs.items():
+        sva = q.get("spec_sva") or {}
+        want_role = str(sva.get("role") or "assert").lower()
+        plist = by_req.get(rid, [])
+        if not plist:
+            if rid not in spec_sva_waivers:
+                r.error("SPEC_SVA_PROPERTY_MISSING", f"requirement {rid}",
+                        "spec-authored SVA must map to at least one property; add a "
+                        "property with spec_sva_id set to this requirement id, or record "
+                        "a human-approved waiver")
+            continue
+        req = req_map.get(rid) or {}
+        for p in plist:
+            pid = str(p.get("id") or "?")
+            if str(p.get("role") or "") != want_role:
+                r.error("SPEC_SVA_ROLE", f"property {pid}",
+                        f"spec SVA role is {want_role!r}; property role is "
+                        f"{p.get('role')!r}. Do not change assert/assume/cover.")
+            if str(p.get("spec_sva_id") or "") != rid:
+                r.error("SPEC_SVA_ID", f"property {pid}",
+                        f"compulsory spec SVA property must set spec_sva_id={rid!r}")
+        declared_ids = req.get("properties")
+        if not isinstance(declared_ids, list) or not {str(p.get("id")) for p in plist} <= {str(x) for x in declared_ids}:
+            r.error("SPEC_SVA_PROPERTIES_DECLARED", f"requirement {rid}",
+                    "requirement.properties must declare every property that discharges "
+                    "the compulsory spec SVA")
+
+    # -- disposition <-> properties ------------------------------------------------------------
+
     for rid, req in req_map.items():
         disp = req.get("disposition")
         plist = by_req.get(rid, [])

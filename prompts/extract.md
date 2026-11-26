@@ -10,7 +10,7 @@ Read, in this order:
    existing extraction to revise).
 2. `spec/spec.md` — the authoritative specification named in the file's front
    matter. Read the whole file; do not infer behavior from RTL. **Read-only:** do not copy spec/RTL; reference them.
-3. `formal/spec/spec_sva.json` / `spec_sva.md` when present — SVA/property snippets found in the spec. Leverage them as authoritative intent: map them to requirements/properties, preserve semantics, and flag conflicts.
+3. `formal/spec/spec_sva.json` / `spec_sva.md` when present — SVA/property snippets found in the spec. **They are compulsory.** Extraction automatically adds `REQ-SVA-###` requirements for them; do not delete or weaken those requirements. Features and text requirements complement the SVA; they do not replace it.
 4. `schemas/structured_spec.json` and `schemas/final_config.json` when they
    exist. They are a cross-check, not a substitute for the spec. If the
    extraction file was generated from them, verify each statement and evidence
@@ -128,8 +128,10 @@ the contract with a reason.
    question instead of choosing an interpretation.
 4. Decide the proposed property shape from the spec sentence, not from the RTL.
 5. Add all requirements to the correct feature.
-6. Self-check:
+6. If the spec contains SVA/assertions, verify that `REQ-SVA-###` requirements exist and still match the spec SVA text; report any conflict between SVA and prose instead of silently choosing one.
+7. Self-check:
    * every requirement has all required fields;
+   * every spec SVA snippet has a corresponding `REQ-SVA-###` requirement;
    * every `Source` exists and contains the evidence;
    * every non-clear requirement has a question, owner and blocking flag;
    * no requirement was invented, merged or strengthened;

@@ -1,0 +1,27 @@
+{
+  "format": "Yosys Witness Trace",
+  "generator": "smtbmc",
+  "clocks": [
+    {"path": ["\\clk_a"], "edge": "posedge", "offset": 0},
+    {"path": ["\\clk_b"], "edge": "posedge", "offset": 0}
+  ],
+  "signals": [
+    {"path": ["\\clk_a"], "width": 1, "offset": 0, "init_only": false},
+    {"path": ["\\clk_b"], "width": 1, "offset": 0, "init_only": false},
+    {"path": ["\\i_req"], "width": 1, "offset": 0, "init_only": false},
+    {"path": ["\\rst_a_n"], "width": 1, "offset": 0, "init_only": false},
+    {"path": ["\\_witness_", "\\anyinit_auto_ff_cc_337_slice_62"], "width": 1, "offset": 0, "init_only": true},
+    {"path": ["\\_witness_", "\\anyinit_flatten_u_dut__procdff_32"], "width": 1, "offset": 0, "init_only": true},
+    {"path": ["\\_witness_", "\\anyinit_flatten_u_dut__procdff_42"], "width": 1, "offset": 0, "init_only": true},
+    {"path": ["\\_witness_", "\\anyinit_flatten_u_dut__procdff_47"], "width": 1, "offset": 0, "init_only": true}
+  ],
+  "steps": [
+    {"bits": "10001000"},
+    {"bits": "1000"},
+    {"bits": "1000"},
+    {"bits": "1000"},
+    {"bits": "1000"},
+    {"bits": "0000"},
+    {"bits": "0000"}
+  ]
+}

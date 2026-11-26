@@ -607,11 +607,30 @@ def write_extraction_artifacts(manifest: dict[str, Any], doc: dict[str, Any]) ->
             lines.append("```")
             lines.append("")
     write_text(sva_md, "\n".join(lines).rstrip() + "\n")
+    # Human-readable compulsory SVA requirements (also present in requirements.json).
+    req_lines = ["# Spec SVA requirements (compulsory)\n",
+                 "These requirements are generated from SVA/assertions in the spec. "
+                 "They must be mapped to contract properties with `spec_sva_id` and the same role.\n"]
+    sva_reqs = [r for r in doc.get("requirements") or [] if r.get("spec_sva")]
+    if not sva_reqs:
+        req_lines.append("_No spec SVA requirements._\n")
+    for req in sva_reqs:
+        req_lines.append(f"## {req.get('id')} -- {req.get('title','')}\n")
+        req_lines.append(f"- **Feature:** {req.get('feature','')}")
+        req_lines.append(f"- **Source:** {req.get('source','')}")
+        req_lines.append(f"- **Role:** {(req.get('spec_sva') or {}).get('role','')}")
+        req_lines.append(f"- **Proposed property:** {req.get('proposed','')}")
+        req_lines.append(f"- **Clarity:** {req.get('clarity','')}")
+        req_lines.append(f"- **Evidence:** `{str(req.get('evidence','')).replace('`','')}`")
+        req_lines.append("")
+    sva_req_md = paths["extraction"].parent / "spec_sva_requirements.md"
+    write_text(sva_req_md, "\n".join(req_lines).rstrip() + "\n")
     return {
         "extraction": rel_to(root, paths["extraction"]),
         "questions": rel_to(root, Path(manifest["_paths"]["reports"]) / "questions.md"),
         "spec_sva": rel_to(root, sva_json),
         "spec_sva_import": rel_to(root, sva_import),
+        "spec_sva_requirements": rel_to(root, sva_req_md),
     }
 
 
@@ -740,6 +759,119 @@ def extract_spec_sva(spec_text: str) -> list[dict[str, Any]]:
         seen.add(k)
         uniq.append(x)
     return uniq
+SVA_FEATURE_ID = "F-SVA"
+
+
+def _recompute_stats(doc: dict[str, Any]) -> None:
+    reqs = doc.get("requirements") or []
+    feats = doc.get("features") or []
+    errors = doc.get("errors") or []
+    warnings = doc.get("warnings") or []
+    doc["stats"] = {
+        "features": len(feats),
+        "requirements": len(reqs),
+        "clear": sum(1 for r in reqs if r.get("clarity") == "clear"),
+        "unclear": sum(1 for r in reqs if r.get("clarity") != "clear"),
+        "blocking": sum(1 for r in reqs if r.get("clarity") != "clear" and r.get("blocking")),
+        "errors": len(errors),
+        "warnings": len(warnings),
+        "ready": bool(reqs) and not errors,
+    }
+
+
+def merge_spec_sva_requirements(doc: dict[str, Any]) -> int:
+    """Make spec-authored SVA compulsory requirements.
+
+    Every SVA/assertion found in the spec becomes a REQ-SVA-### requirement.
+    The contract must map it to a property (or record a human-approved waiver).
+    """
+    items = doc.get("spec_sva") or []
+    if not items:
+        return 0
+    existing = {str(r.get("id")) for r in doc.get("requirements") or []}
+    existing_sva_text = {
+        str((r.get("spec_sva") or {}).get("text") or "").strip()
+        for r in doc.get("requirements") or [] if r.get("spec_sva")
+    }
+    feature_key = "F-SVA"
+    features = doc.setdefault("features", [])
+    if feature_key not in {str(f.get("id")) for f in features}:
+        features.append({
+            "id": feature_key,
+            "text": "Specification-authored SVA/assertions (compulsory)",
+            "class": "Mandatory",
+            "requirements": [],
+            "source": "spec",
+        })
+    added = 0
+    for i, item in enumerate(items, 1):
+        raw = str(item.get("text") or "").strip()
+        if not raw or raw in existing_sva_text:
+            continue
+        rid = f"REQ-SVA-{i:03d}"
+        n = i
+        while rid in existing:
+            n += 1
+            rid = f"REQ-SVA-{n:03d}"
+        start_line = int(item.get("line") or 1)
+        end_line = start_line + raw.count("\n")
+        source = f"L{start_line}" if start_line == end_line else f"L{start_line}-L{end_line}"
+        role = str(item.get("role") or "assert").lower()
+        suggested = str(item.get("suggested_kind") or "always")
+        if role == "assume":
+            proposed = "assume"
+        elif role == "cover":
+            proposed = "cover"
+        elif suggested in PROPOSED and suggested not in ("assume", "cover", "static", "unknown", ""):
+            proposed = suggested
+        else:
+            proposed = "always"
+        expression = str(item.get("expression") or "").strip()
+        clarity = "clear" if expression else "incomplete"
+        question = "" if clarity == "clear" else (
+            f"The spec SVA at {source} could not be parsed into an expression; "
+            "confirm the exact assertion text and clocking.")
+        requirement = {
+            "id": rid,
+            "title": f"Spec SVA: {item.get('name') or source}",
+            "feature": feature_key,
+            "category": "sva",
+            "text": f"Specification mandates this SVA/assertion (compulsory): {raw}",
+            "source": source,
+            "evidence": raw,
+            "clarity": clarity,
+            "question": question,
+            "owner": "verification_engineer",
+            "blocking": clarity != "clear",
+            "proposed": proposed,
+            "notes": "Compulsory spec SVA. The contract must map this to a property with "
+                     "spec_sva_id set to this requirement id; do not weaken or drop it.",
+            "spec_sva": {
+                "id": rid,
+                "role": role,
+                "kind": suggested,
+                "clock": item.get("clock") or "",
+                "clock_edge": item.get("clock_edge") or "",
+                "disable_iff": item.get("disable_iff") or "",
+                "expression": expression,
+                "text": raw,
+                "line": start_line,
+            },
+        }
+        doc.setdefault("requirements", []).append(requirement)
+        existing.add(rid)
+        existing_sva_text.add(raw)
+        added += 1
+    # keep feature -> requirement links current
+    by_feature: dict[str, list[str]] = {}
+    for req in doc.get("requirements") or []:
+        by_feature.setdefault(str(req.get("feature")), []).append(str(req.get("id")))
+    for feat in features:
+        feat["requirements"] = by_feature.get(str(feat.get("id")), [])
+    _recompute_stats(doc)
+    return added
+
+
 def extract(manifest: dict[str, Any], force: bool = False,
             quiet: bool = False) -> dict[str, Any]:
     root = project_root(manifest)
@@ -783,6 +915,7 @@ def extract(manifest: dict[str, Any], force: bool = False,
         doc["spec_sva"] = extract_spec_sva(markdown_path.read_text(encoding="utf-8"))
     except Exception:
         doc["spec_sva"] = []
+    merge_spec_sva_requirements(doc)
     write_extraction_artifacts(manifest, doc)
     if not quiet:
         stats = doc["stats"]

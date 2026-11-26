@@ -1,0 +1,7 @@
+read_verilog -formal -sv /private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/src/rtl/dual_clock.sv /private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/src/generated/fv_prp_req_003_01_monitor.sv /private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/src/generated/fv_prp_req_003_01_top.sv
+prep -top fv_top_prp_req_003_01 -flatten
+async2sync
+memory_map
+opt -fast
+sat -seq 12 -set-at 1 rst_b_n 0 -set-at 2 rst_b_n 0 -set-at 3 rst_b_n 0 -set-at 4 rst_b_n 1 -set-at 5 rst_b_n 1 -set-at 6 rst_b_n 1 -set-at 7 rst_b_n 1 -set-at 8 rst_b_n 1 -set-at 9 rst_b_n 1 -set-at 10 rst_b_n 1 -set-at 11 rst_b_n 1 -set-at 12 rst_b_n 1 -set-at 1 fv_start 0 -set-at 2 fv_start 1 -set-at 3 fv_start 1 -set-at 4 fv_start 1 -set-at 5 fv_start 1 -set-at 6 fv_start 1 -set-at 7 fv_start 1 -set-at 8 fv_start 1 -set-at 9 fv_start 1 -set-at 10 fv_start 1 -set-at 11 fv_start 1 -set-at 12 fv_start 1 -prove-asserts -show clk_a -show rst_a_n -show clk_b -show rst_b_n -show i_req -show fv_start -show u_dut.o_ack -show u_dut.dbg_req_a -show u_dut.dbg_req_b_sync
+

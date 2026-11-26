@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+<testsuite timestamp="2026-11-26T08:58:50" hostname="Mac.lan" package="bmc" id="0" name="default" tests="1" errors="0" failures="0" time="0" skipped="0">
+<properties>
+<property name="os" value="Darwin"/>
+<property name="expect" value="PASS"/>
+<property name="status" value="PASS"/>
+</properties>
+<testcase classname="default" name="build execution" time="0">
+</testcase>
+<testcase classname="default" name="Property ASSERT in fv_top_prp_req_003_01_bmc at /private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/src/generated/fv_prp_req_003_01_monitor.sv:17.23-17.44" time="0" type="ASSERT" location="/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/src/generated/fv_prp_req_003_01_monitor.sv:17.23-17.44" id="_witness_.assert_flatten_u_mon___private_var_folders_lm_fz6crp5d0vsd7sqzd09xkzvw0000gn_T_opencode_dual_clock_dev_formal_src_generated_fv_prp_req_003_01_monitor_sv_17_assert_11">
+</testcase>
+<system-out>SBY  8:58:50 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_003_01/bmc] Removing directory '/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_003_01/bmc'.
+SBY  8:58:50 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_003_01/bmc] engine_0: smtbmc
+SBY  8:58:50 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_003_01/bmc] base: starting process &quot;cd /private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_003_01/bmc/src; yosys -ql ../model/design.log ../model/design.ys&quot;
+SBY  8:58:50 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_003_01/bmc] base: finished (returncode=0)
+SBY  8:58:50 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_003_01/bmc] prep: starting process &quot;cd /private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_003_01/bmc/model; yosys -ql design_prep.log design_prep.ys&quot;
+SBY  8:58:50 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_003_01/bmc] prep: finished (returncode=0)
+SBY  8:58:50 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_003_01/bmc] smt2: starting process &quot;cd /private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_003_01/bmc/model; yosys -ql design_smt2.log design_smt2.ys&quot;
+SBY  8:58:50 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_003_01/bmc] smt2: finished (returncode=0)
+SBY  8:58:50 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_003_01/bmc] engine_0: starting process &quot;cd /private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_003_01/bmc; yosys-smtbmc --presat --unroll --noprogress -t 12  --append 0 --dump-vcd engine_0/trace.vcd --dump-yw engine_0/trace.yw --dump-vlogtb engine_0/trace_tb.v --dump-smtc engine_0/trace.smtc model/design_smt2.smt2&quot;
+SBY  8:58:50 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_003_01/bmc] engine_0: ##   0:00:00  Solver: yices
+SBY  8:58:50 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_003_01/bmc] engine_0: ##   0:00:00  Checking assumptions in step 0..
+SBY  8:58:50 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_003_01/bmc] engine_0: ##   0:00:00  Checking assertions in step 0..
+SBY  8:58:50 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_003_01/bmc] engine_0: ##   0:00:00  Checking assumptions in step 1..
+SBY  8:58:50 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_003_01/bmc] engine_0: ##   0:00:00  Checking assertions in step 1..
+SBY  8:58:50 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_003_01/bmc] engine_0: ##   0:00:00  Checking assumptions in step 2..
+SBY  8:58:50 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_003_01/bmc] engine_0: ##   0:00:00  Checking assertions in step 2..
+SBY  8:58:50 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_003_01/bmc] engine_0: ##   0:00:00  Checking assumptions in step 3..
+SBY  8:58:50 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_003_01/bmc] engine_0: ##   0:00:00  Checking assertions in step 3..
+SBY  8:58:50 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_003_01/bmc] engine_0: ##   0:00:00  Checking assumptions in step 4..
+SBY  8:58:50 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_003_01/bmc] engine_0: ##   0:00:00  Checking assertions in step 4..
+SBY  8:58:50 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_003_01/bmc] engine_0: ##   0:00:00  Checking assumptions in step 5..
+SBY  8:58:50 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_003_01/bmc] engine_0: ##   0:00:00  Checking assertions in step 5..
+SBY  8:58:50 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_003_01/bmc] engine_0: ##   0:00:00  Checking assumptions in step 6..
+SBY  8:58:50 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_003_01/bmc] engine_0: ##   0:00:00  Checking assertions in step 6..
+SBY  8:58:50 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_003_01/bmc] engine_0: ##   0:00:00  Checking assumptions in step 7..
+SBY  8:58:50 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_003_01/bmc] engine_0: ##   0:00:00  Checking assertions in step 7..
+SBY  8:58:50 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_003_01/bmc] engine_0: ##   0:00:00  Checking assumptions in step 8..
+SBY  8:58:50 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_003_01/bmc] engine_0: ##   0:00:00  Checking assertions in step 8..
+SBY  8:58:50 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_003_01/bmc] engine_0: ##   0:00:00  Checking assumptions in step 9..
+SBY  8:58:50 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_003_01/bmc] engine_0: ##   0:00:00  Checking assertions in step 9..
+SBY  8:58:50 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_003_01/bmc] engine_0: ##   0:00:00  Checking assumptions in step 10..
+SBY  8:58:50 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_003_01/bmc] engine_0: ##   0:00:00  Checking assertions in step 10..
+SBY  8:58:50 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_003_01/bmc] engine_0: ##   0:00:00  Checking assumptions in step 11..
+SBY  8:58:50 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_003_01/bmc] engine_0: ##   0:00:00  Checking assertions in step 11..
+SBY  8:58:50 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_003_01/bmc] engine_0: ##   0:00:00  Status: passed
+SBY  8:58:50 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_003_01/bmc] engine_0: finished (returncode=0)
+SBY  8:58:50 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_003_01/bmc] engine_0: Status returned by engine: pass
+SBY  8:58:50 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_003_01/bmc] summary: Elapsed clock time [H:MM:SS (secs)]: 0:00:00 (0)
+SBY  8:58:50 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_003_01/bmc] summary: Elapsed process time [H:MM:SS (secs)]: 0:00:00 (0)
+SBY  8:58:50 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_003_01/bmc] summary: engine_0 (smtbmc) returned pass
+SBY  8:58:50 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_003_01/bmc] summary: engine_0 did not produce any traces
+SBY  8:58:50 [/private/var/folders/lm/fz6crp5d0vsd7sqzd09xkzvw0000gn/T/opencode/dual_clock_dev/formal/build/sby/prp_req_003_01/bmc] DONE (PASS, rc=0)
+</system-out>
+<system-err>
+</system-err>
+</testsuite>
+</testsuites>

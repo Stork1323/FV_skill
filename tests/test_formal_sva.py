@@ -33,6 +33,7 @@ from fv_contract import (  # noqa: E402
 from fv_design import const_eval, parse_port_decls, resolve_dims  # noqa: E402
 from fv_regress import _change, _is_blocking, compare, make_baseline  # noqa: E402
 from fv_render import map_expr, substitute_params  # noqa: E402
+from fv_extract import extract_spec_sva, merge_spec_sva_requirements  # noqa: E402
 
 COUNTER = SKILL / "examples" / "counter"
 
@@ -65,9 +66,10 @@ def _copy_counter(tmp: Path) -> Path:
 def _run_cli(*args: str, cwd: Path | None = None, env: dict | None = None) -> tuple[int, str, str]:
     import os, subprocess
     e = os.environ.copy()
-    # Most tests are not about the extraction-approval gate; keep them stable.
-    # Gate-specific tests should pass env={"FV_ALLOW_MISSING_EXTRACTION_APPROVAL":"0"}.
-    e.setdefault("FV_ALLOW_MISSING_EXTRACTION_APPROVAL", "1")
+    # Tests use the checked-in counter approval.  Gate-specific tests can
+    # explicitly opt into the test-only bypass with
+    # env={"FV_ALLOW_MISSING_EXTRACTION_APPROVAL":"1"}.
+    e.pop("FV_ALLOW_MISSING_EXTRACTION_APPROVAL", None)
     if env:
         e.update(env)
     proc = subprocess.run(
@@ -135,6 +137,125 @@ class ExpressionTests(unittest.TestCase):
         once = map_calls("prev(q) && rose(i_rst_n)", mapper)
         self.assertEqual(once, "$past(q) && $rose(i_rst_n)")
         self.assertEqual(map_calls(once, mapper), once)
+
+
+class SpecSvaRequirementTests(unittest.TestCase):
+    def test_spec_sva_becomes_compulsory_requirements(self) -> None:
+        text = """# Spec
+```sv
+assert property (@(posedge clk) disable iff (!rst_n) req |-> ##[1:2] ack);
+assume property (@(posedge clk) !rst_n |-> !req);
+```
+"""
+        doc = {
+            "spec_sva": extract_spec_sva(text),
+            "features": [],
+            "requirements": [],
+            "errors": [],
+            "warnings": [],
+        }
+        self.assertEqual(len(doc["spec_sva"]), 2)
+        added = merge_spec_sva_requirements(doc)
+        self.assertEqual(added, 2)
+        ids = [r["id"] for r in doc["requirements"]]
+        self.assertEqual(ids, ["REQ-SVA-001", "REQ-SVA-002"])
+        self.assertTrue(all(r.get("spec_sva") for r in doc["requirements"]))
+        self.assertEqual(doc["requirements"][0]["proposed"], "response")
+        self.assertEqual(doc["requirements"][1]["proposed"], "assume")
+        self.assertIn("F-SVA", [f["id"] for f in doc["features"]])
+        # Idempotent: re-running extraction must not duplicate requirements.
+        self.assertEqual(merge_spec_sva_requirements(doc), 0)
+        self.assertEqual(len(doc["requirements"]), 2)
+
+    def test_contract_rejects_missing_or_mismapped_spec_sva(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp) / "demo"
+            project.mkdir()
+            (project / "spec").mkdir()
+            spec = project / "spec" / "spec.md"
+            spec.write_text(
+                "# Demo\n\n"
+                "While i_rst_n is low, q shall be 0.\n"
+                "```sv\n"
+                "assert property (@(posedge i_clk) disable iff (!i_rst_n) i_inc |-> ##1 q == $past(q)+1);\n"
+                "```\n",
+                encoding="utf-8",
+            )
+            manifest = _manifest_for(project)
+            bundle = {
+                "design": {"name": "demo", "top": "demo"},
+                "spec": {"markdown": "spec/spec.md"},
+                "sources": {"spec_markdown": {"sha256": __import__("hashlib").sha256(spec.read_bytes()).hexdigest()}},
+                "features": [{"id": "F01", "class": "Mandatory"}],
+                "requirements": [
+                    {
+                        "id": "REQ-001", "feature": "F01", "text": "While i_rst_n is low, q shall be 0.",
+                        "clarity": "clear", "sva_hint": "",
+                    },
+                    {
+                        "id": "REQ-SVA-001", "feature": "F-SVA", "text": "Spec SVA",
+                        "clarity": "clear", "sva_hint": "",
+                        "spec_sva": {
+                            "id": "REQ-SVA-001", "role": "assert", "kind": "next",
+                            "text": "assert property (@(posedge i_clk) disable iff (!i_rst_n) i_inc |-> ##1 q == $past(q)+1);",
+                        },
+                    },
+                ],
+                "spec_sva": [{
+                    "text": "assert property (@(posedge i_clk) disable iff (!i_rst_n) i_inc |-> ##1 q == $past(q)+1);",
+                    "role": "assert",
+                }],
+            }
+            interface = {
+                "top": "demo", "parameters": {}, "localparams": {},
+                "ports": [
+                    {"name": "i_clk", "direction": "input", "dims": [], "width": 1},
+                    {"name": "i_rst_n", "direction": "input", "dims": [], "width": 1},
+                    {"name": "i_inc", "direction": "input", "dims": [], "width": 1},
+                    {"name": "q", "direction": "output", "dims": ["[3:0]"], "width": 4},
+                ],
+            }
+            contract = {
+                "schema_version": "1.0",
+                "design": {"name": "demo", "top": "demo",
+                           "clock": {"signal": "i_clk", "edge": "posedge"},
+                           "reset": {"signal": "i_rst_n", "active": "low", "kind": "async", "cycles": 2},
+                           "parameters": {}},
+                "requirements": [
+                    {"id": "REQ-001", "feature": "F01", "disposition": "formalized",
+                     "reason": "Reset clears q while reset is asserted low.",
+                     "evidence": {"section": "L3", "quote": "While i_rst_n is low, q shall be 0."},
+                     "properties": ["PRP-REQ-001-01"]},
+                    {"id": "REQ-SVA-001", "feature": "F-SVA", "disposition": "formalized",
+                     "reason": "Spec-authored SVA is compulsory and must be preserved.",
+                     "evidence": {"section": "L5", "quote": "assert property (@(posedge i_clk) disable iff (!i_rst_n) i_inc |-> ##1 q == $past(q)+1);"},
+                     "properties": ["PRP-REQ-SVA-001-01"]},
+                ],
+                "properties": [
+                    {"id": "PRP-REQ-001-01", "req": "REQ-001", "feature": "F01", "title": "Reset clears q",
+                     "kind": "reset_value", "role": "assert", "expr": "q == 4'd0", "disable_reset": False,
+                     "evidence": {"section": "L3", "quote": "While i_rst_n is low, q shall be 0."}},
+                ],
+                "scope": {"configuration": {}, "proven": [], "not_proven": []},
+            }
+            v = validate_contract(manifest, contract, bundle, interface)
+            codes = {e.code for e in v.errors}
+            self.assertIn("SPEC_SVA_PROPERTY_MISSING", codes)
+
+            contract["properties"].append({
+                "id": "PRP-REQ-SVA-001-01", "req": "REQ-SVA-001", "feature": "F-SVA", "title": "Spec SVA preserved",
+                "kind": "next", "role": "assume", "trigger": "i_inc", "expr": "q == prev(q) + 4'd1",
+                "evidence": {"section": "L5", "quote": "assert property (@(posedge i_clk) disable iff (!i_rst_n) i_inc |-> ##1 q == $past(q)+1);"},
+            })
+            v = validate_contract(manifest, contract, bundle, interface)
+            codes = {e.code for e in v.errors}
+            self.assertIn("SPEC_SVA_ROLE", codes)
+            self.assertIn("SPEC_SVA_ID", codes)
+
+            contract["properties"][1]["role"] = "assert"
+            contract["properties"][1]["spec_sva_id"] = "REQ-SVA-001"
+            v = validate_contract(manifest, contract, bundle, interface)
+            self.assertTrue(v.ok, [str(e) for e in v.errors])
 
 
 class DesignParserTests(unittest.TestCase):
@@ -471,6 +592,129 @@ class SuiteTests(unittest.TestCase):
             report = json.loads((tmpdir / "out" / "regression-suite.json").read_text())
             self.assertEqual(report["overall"], "PASS")
             self.assertEqual(report["summary"]["designs"], 1)
+
+
+class MultiClockContractTests(unittest.TestCase):
+    def test_contract_accepts_per_property_clock_reset_domain(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp) / "mc"
+            project.mkdir()
+            (project / "spec").mkdir()
+            spec = project / "spec" / "spec.md"
+            spec.write_text("# S\n\nWhile rst_a_n is low, q_a shall be 0.\nWhile rst_b_n is low, q_b shall be 0.\n", encoding="utf-8")
+            manifest = _manifest_for(project)
+            manifest["clock"] = {"signal": "clk_a", "edge": "posedge"}
+            manifest["reset"] = {"signal": "rst_a_n", "active": "low", "kind": "async", "cycles": 2}
+            import hashlib
+            sha = hashlib.sha256(spec.read_bytes()).hexdigest()
+            bundle = {
+                "design": {"name": "demo", "top": "demo"},
+                "spec": {"markdown": "spec/spec.md"},
+                "sources": {"spec_markdown": {"sha256": sha}},
+                "features": [{"id": "F01", "class": "Mandatory"}],
+                "requirements": [
+                    {"id": "REQ-001", "feature": "F01", "text": "While rst_a_n is low, q_a shall be 0.", "clarity": "clear"},
+                    {"id": "REQ-002", "feature": "F01", "text": "While rst_b_n is low, q_b shall be 0.", "clarity": "clear"},
+                ],
+                "spec_sva": [],
+            }
+            interface = {
+                "top": "demo", "parameters": {}, "localparams": {},
+                "ports": [
+                    {"name": "clk_a", "direction": "input", "dims": [], "width": 1},
+                    {"name": "rst_a_n", "direction": "input", "dims": [], "width": 1},
+                    {"name": "clk_b", "direction": "input", "dims": [], "width": 1},
+                    {"name": "rst_b_n", "direction": "input", "dims": [], "width": 1},
+                    {"name": "q_a", "direction": "output", "dims": [], "width": 1},
+                    {"name": "q_b", "direction": "output", "dims": [], "width": 1},
+                ],
+            }
+            contract = {
+                "schema_version": "1.0",
+                "design": {
+                    "name": "demo", "top": "demo",
+                    "clock": {"signal": "clk_a", "edge": "posedge"},
+                    "reset": {"signal": "rst_a_n", "active": "low", "kind": "async", "cycles": 2},
+                    "clocks": [
+                        {"name": "clk_a", "signal": "clk_a", "edge": "posedge", "domain": "a"},
+                        {"name": "clk_b", "signal": "clk_b", "edge": "posedge", "domain": "b"},
+                    ],
+                    "resets": [
+                        {"name": "rst_a", "signal": "rst_a_n", "active": "low", "kind": "async", "cycles": 2, "domain": "a", "clock": "clk_a"},
+                        {"name": "rst_b", "signal": "rst_b_n", "active": "low", "kind": "async", "cycles": 3, "domain": "b", "clock": "clk_b"},
+                    ],
+                    "parameters": {},
+                },
+                "requirements": [
+                    {"id": "REQ-001", "feature": "F01", "disposition": "formalized",
+                     "reason": "Domain A reset clears q_a while the domain A reset is asserted.",
+                     "evidence": {"section": "L3", "quote": "While rst_a_n is low, q_a shall be 0."},
+                     "properties": ["PRP-REQ-001-01"]},
+                    {"id": "REQ-002", "feature": "F01", "disposition": "formalized",
+                     "reason": "Domain B reset clears q_b while the domain B reset is asserted.",
+                     "evidence": {"section": "L4", "quote": "While rst_b_n is low, q_b shall be 0."},
+                     "properties": ["PRP-REQ-002-01"]},
+                ],
+                "properties": [
+                    {"id": "PRP-REQ-001-01", "req": "REQ-001", "feature": "F01", "title": "A reset clears q_a",
+                     "kind": "reset_value", "role": "assert", "clock": "clk_a", "reset": "rst_a",
+                     "expr": "q_a == 1'b0", "disable_reset": False,
+                     "evidence": {"section": "L3", "quote": "While rst_a_n is low, q_a shall be 0."}},
+                    {"id": "PRP-REQ-002-01", "req": "REQ-002", "feature": "F01", "title": "B reset clears q_b",
+                     "kind": "reset_value", "role": "assert", "domain": "b",
+                     "expr": "q_b == 1'b0", "disable_reset": False,
+                     "evidence": {"section": "L4", "quote": "While rst_b_n is low, q_b shall be 0."}},
+                ],
+                "scope": {"configuration": {}, "proven": [], "not_proven": []},
+            }
+            v = validate_contract(manifest, contract, bundle, interface)
+            self.assertTrue(v.ok, [str(e) for e in v.errors])
+
+            bad = json.loads(json.dumps(contract))
+            bad["properties"][1]["clock"] = "missing_clk"
+            v = validate_contract(manifest, bad, bundle, interface)
+            self.assertTrue(any(e.code == "PROP_CLOCK" for e in v.errors), [str(e) for e in v.errors])
+
+
+class WaveformEvidenceTests(unittest.TestCase):
+    def test_waveforms_always_generate_vcd_and_svg(self) -> None:
+        from fv_waveform import generate_for_results
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "formal" / "results").mkdir(parents=True)
+            (root / "formal" / "build").mkdir(parents=True)
+            (root / "formal" / "reports").mkdir(parents=True)
+            (root / "formal" / "design.json").write_text(json.dumps({
+                "schema_version": "1.0", "name": "d", "top": "d",
+                "paths": {"results": "formal/results/formal_results.json",
+                          "build": "formal/build", "reports": "formal/reports"}
+            }))
+            manifest = load_manifest(root / "formal" / "design.json")
+            results = {
+                "schema_version": "1.0",
+                "properties": [
+                    {"id": "PRP-001", "status": "PROVEN", "kind": "always", "role": "assert"},
+                    {"id": "COV-001", "status": "COVERED", "kind": "cover", "role": "cover",
+                     "counterexample": ["trace_vcd: formal/build/sby/cov_001/engine_0/trace.vcd"]},
+                ],
+            }
+            (root / "formal" / "results" / "formal_results.json").write_text(json.dumps(results))
+            trace = root / "formal" / "build" / "sby" / "cov_001" / "engine_0"
+            trace.mkdir(parents=True)
+            trace.joinpath("trace.vcd").write_text(
+                "$timescale 1ns $end\n$scope module t $end\n$var wire 1 ! clk $end\n$upscope $end\n$enddefinitions $end\n#0\n0!\n#1\n1!\n"
+            )
+            out = generate_for_results(manifest)
+            self.assertEqual(out["generated"], 2)
+            for pid in ("PRP-001", "COV-001"):
+                self.assertTrue((root / "formal" / "reports" / "waveforms" / f"{pid}.vcd").is_file())
+                self.assertTrue((root / "formal" / "reports" / "waveforms" / f"{pid}.svg").is_file())
+                self.assertTrue((root / "formal" / "reports" / "waveforms" / f"{pid}.gtkw").is_file())
+                self.assertTrue((root / "formal" / "reports" / "waveforms" / f"{pid}.signals.json").is_file())
+            kinds = {a["property"]: a["vcd_kind"] for a in out["artifacts"]}
+            self.assertEqual(kinds["PRP-001"], "synthetic_no_trace")
+            self.assertEqual(kinds["COV-001"], "trace")
 
 
 class RepositoryTests(unittest.TestCase):
